@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 视频生成 - ArcherDoc AI</title>
+    <link rel="stylesheet" href="../style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .detail-page {
+            padding-top: 140px;
+            padding-bottom: 100px;
+        }
+
+        .flow-visual-container {
+            margin: 80px 0;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 60px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .detailed-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .flow-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 20px;
+        }
+
+        .flow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 60px;
+            right: -20%;
+            width: 40%;
+            height: 2px;
+            background: linear-gradient(to right, #818cf8, transparent);
+        }
+
+        .step-icon-box {
+            width: 80px;
+            height: 80px;
+            background: var(--surface-color);
+            border: 1px solid #818cf8;
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 0 20px rgba(129, 140, 248, 0.3);
+            transition: var(--transition);
+        }
+
+        .flow-step:hover .step-icon-box {
+            transform: translateY(-10px) scale(1.1);
+        }
+
+        .step-info h4 {
+            font-size: 1.25rem;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .step-info p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .feature-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            margin-top: 80px;
+        }
+
+        .detail-card {
+            background: var(--surface-color);
+            padding: 3rem;
+            border-radius: 32px;
+            border: 1px solid var(--border);
+        }
+
+        .detail-card h3 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .detail-card li {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            list-style-type: none;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .detail-card li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: #818cf8;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo"><a href="../index.html" style="text-decoration: none; color: inherit;">ArcherDoc AI ·
+                    安超云</a></div>
+            <button class="mobile-menu-btn" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <ul class="nav-links">
+                <li><a href="translation.html">文档翻译</a></li>
+                <li><a href="video.html">视频生成</a></li>
+                <li><a href="article.html">文章生成</a></li>
+                <li><a href="image.html">AI配图</a></li>
+                <li><a href="font.html">字体管理</a></li>
+                <li><a href="../download.html">下载中心</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container detail-page">
+        <div class="section-header">
+            <span class="feature-tag">Video Experience</span>
+            <h1>AI 视频生成全流程</h1>
+            <p>将您的 文档文稿一键转化为专业级的视频讲解，赋予文字以视听生命。</p>
+        </div>
+
+        <div class="flow-visual-container">
+            <div class="detailed-flow">
+                <div class="flow-step">
+                    <div class="step-icon-box">🧠</div>
+                    <div class="step-info">
+                        <h4>内容建模</h4>
+                        <p>自动读取 文档每页核心信息，通过大模型构建场景化讲解逻辑。</p>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">📝</div>
+                    <div class="step-info">
+                        <h4>讲稿精炼</h4>
+                        <p>自动生成口语化的演讲文稿，支持手动实时修改与语义重构。</p>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">🎙️</div>
+                    <div class="step-info">
+                        <h4>语音克隆</h4>
+                        <p>集成 MiniMax/Qwen 顶级音色库，实现高拟真度业播音配音。</p>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">🎬</div>
+                    <div class="step-info">
+                        <h4>全屏渲染</h4>
+                        <p>自动同步画音轨道，批量合成视频，单页独立导出与全局预览。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="feature-image">
+            <img src="../assets/video_s.png" alt="Article Generation">
+        </div>
+
+        <div class="feature-details">
+            <div class="detail-card">
+                <h3>影视级渲染</h3>
+                <ul>
+                    <li><strong>动态转场：</strong> AI 自动识别内容节奏，匹配平滑转场动画。</li>
+                    <li><strong>4K 画质：</strong> 支持输出高清 MP4 格式，适配大屏汇报需求。</li>
+                    <li><strong>媒体融合：</strong> 允许在 文档画布上叠加外部视频素材。</li>
+                </ul>
+            </div>
+            <div class="detail-card">
+                <h3>声音实验室</h3>
+                <ul>
+                    <li><strong>多情感表达：</strong> 语音可自带稳重、热情或知性等多种情感。</li>
+                    <li><strong>方言本地化：</strong> 支持北京话、吴语、四川话等方言输出。</li>
+                    <li><strong>音效自动对齐：</strong> AI 确保讲解词与动画进度毫米级对准。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div class="footer-bottom">
+                &copy; 2026 安超云软件有限公司. All rights reserved.
+            </div>
+        </div>
+    </footer>
+    <script src="../main.js"></script>
+</body>
+
+</html>

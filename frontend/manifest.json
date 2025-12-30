@@ -1,0 +1,22 @@
+{
+  "name": "ArcherDoc AI",
+  "short_name": "ArcherDoc AI",
+  "description": "Professional PowerPoint processing tool with translation, video generation and article creation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#4F46E5",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/assets/icons/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icons/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

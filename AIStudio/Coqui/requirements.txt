@@ -1,0 +1,17 @@
+# Coqui TTS服务依赖
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+gunicorn>=21.2.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
+requests>=2.31.0
+
+# TTS相关依赖
+# TTS>=0.22.0
+# torch>=2.0.0
+# torchaudio>=2.0.0
+# numpy>=1.24.0
+
+# 可选依赖
+# transformers>=4.36.0  # 如果需要更多模型支持
+# librosa>=0.10.0      # 音频处理

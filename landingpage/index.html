@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArcherDoc AI - 企业级智能文档处理平台</title>
+    <meta name="description" content="ArcherDoc AI 是一款集文档翻译、视频生成、文章创作、AI配图、字体管理于一体的智能办公工具。保留原始排版，高效产出，助力办公升级。">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="glow-orb"></div>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo"><a href="#" style="text-decoration: none; color: inherit;">ArcherDoc AI · 安超云</a></div>
+            <button class="mobile-menu-btn" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <ul class="nav-links">
+                <li><a href="#translation">文档翻译</a></li>
+                <li><a href="#video">视频生成</a></li>
+                <li><a href="#article">文章生成</a></li>
+                <li><a href="#image">AI配图</a></li>
+                <li><a href="#font">字体管理</a></li>
+                <li><a href="#workflow">解决方案</a></li>
+                <li><a href="download.html">下载中心</a></li>
+            </ul>
+            <a href="http://ai.archeros.cn:8080/" class="btn-primary">立即开始</a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="fade-in">重塑办公生产力</h1>
+                <p class="fade-in">ArcherDoc AI 集翻译、视频生成、文章写作、AI配图于一体，通过 AI 赋能每一个办公时刻。</p>
+                <div class="hero-btns fade-in">
+                    <a href="download.html" class="btn-secondary">客户端下载</a>
+                    <a href="http://ai.archeros.cn:8080/" class="btn-large">立即使用</a>
+                    <a href="#workflow" class="btn-secondary">了解功能</a>
+                </div>
+            </div>
+            <div class="hero-visual fade-in">
+                <div class="glass-mockup">
+                    <div class="mockup-header">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <div class="mockup-content">
+                        <div class="dummy-ppt">
+                            <div class="line"></div>
+                            <div class="line short"></div>
+                            <div class="rect"></div>
+                            <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                                <div style="width: 30%; height: 6px; background: rgba(255,255,255,0.05);"></div>
+                                <div style="width: 20%; height: 6px; background: rgba(255,255,255,0.05);"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section id="features" class="feature-sections">
+        <div class="container">
+            <!-- Feature 1: Translation -->
+            <div id="translation" class="feature-row fade-in">
+                <div class="feature-info">
+                    <span class="feature-tag">智能核心</span>
+                    <h2>文档智能翻译</h2>
+                    <p>在保留原始 PowerPoint 格式、颜色和布局的前提下，将文档精准翻译为指定语言。支持目标语言自适应排版，防止文字溢出，保护您的演示美学。</p>
+                    <div class="feature-highlights">
+                        <span>✓ 格式完美保留</span>
+                        <span>✓ 多模型支持</span>
+                        <span>✓ 术语一致性</span>
+                    </div>
+                    <a href="features/translation.html" class="btn-primary">查看详细流程 →</a>
+                </div>
+                <div class="feature-image">
+                    <img src="assets/translation.png" alt="PPT Translation Illustration">
+                </div>
+            </div>
+
+            <!-- Feature 2: Video -->
+            <div id="video" class="feature-row reverse fade-in">
+                <div class="feature-info">
+                    <span class="feature-tag">视听呈现</span>
+                    <h2>AI 视频生成</h2>
+                    <p>一键将静态文档转化为动态讲解视频。AI 智能分析内容并生成演讲稿，配合 MiniMax 或 Qwen 高拟真语音，让您的演示更具感染力。</p>
+                    <div class="feature-highlights">
+                        <span>✓ 自动讲稿编写</span>
+                        <span>✓ 方言音色可选</span>
+                        <span>✓ 视频号/B站适配</span>
+                    </div>
+                    <a href="features/video.html" class="btn-primary">了解生成流程 →</a>
+                </div>
+                <div class="feature-image">
+                    <img src="assets/video.png" alt="AI Video Generation">
+                </div>
+            </div>
+
+            <!-- Feature 3: Article -->
+            <div id="article" class="feature-row fade-in">
+                <div class="feature-info">
+                    <span class="feature-tag">内容分发</span>
+                    <h2>文章智能生成</h2>
+                    <p>将文档核心观点快速转化为微信公众号、小红书、微博等各平台风格的文章。基于大模型算法，确保逻辑严密且文风贴合平台属性。</p>
+                    <div class="feature-highlights">
+                        <span>✓ 多平台风格切换</span>
+                        <span>✓ AI 深度撰写</span>
+                        <span>✓ 一键微调优化</span>
+                    </div>
+                    <a href="features/article.html" class="btn-primary">查看分发流程 →</a>
+                </div>
+                <div class="feature-image">
+                    <img src="assets/article.png" alt="Article Generation">
+                </div>
+            </div>
+
+            <!-- Feature 4: AI Image -->
+            <div id="image" class="feature-row reverse fade-in">
+                <div class="feature-info">
+                    <span class="feature-tag">视觉美化</span>
+                    <h2>AI 专业配图</h2>
+                    <p>告别枯燥的文字堆砌。AI 自动分析幻灯片主题并生成匹配的 4K 高清艺术插画，支持 ComfyUI 本地化部署，保护创意隐私。</p>
+                    <div class="feature-highlights">
+                        <span>✓ 4K 高清渲染</span>
+                        <span>✓ 本地隐私模式</span>
+                        <span>✓ 10种宽高比适配</span>
+                    </div>
+                    <a href="features/image.html" class="btn-primary">查看配图流程 →</a>
+                </div>
+                <div class="feature-image">
+                    <img src="assets/image.png" alt="AI Image Generation">
+                </div>
+            </div>
+
+            <!-- Feature 5: Font -->
+            <div id="font" class="feature-row fade-in">
+                <div class="feature-info">
+                    <span class="feature-tag">排版艺术</span>
+                    <h2>全局字体管理</h2>
+                    <p>重塑品牌专业度。一键统一全文档字体风格，智能适配常用中英文字体库，让您的文档每一页都散发高端质感。</p>
+                    <div class="feature-highlights">
+                        <span>✓ 全局快速替换</span>
+                        <span>✓ 实时效果预览</span>
+                        <span>✓ 格式智能保护</span>
+                    </div>
+                    <a href="features/font.html" class="btn-primary">查看管理流程 →</a>
+                </div>
+                <div class="feature-image">
+                    <img src="assets/font.png" alt="AI Image Generation">
+                    <!--  <div class="glass-placeholder font-showcase">
+                        <span class="main-char">Aa</span>
+                        <span class="sub-char top">A</span>
+                        <span class="sub-char bottom">a</span>
+                    </div> -->
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+
+    <section id="workflow" class="workflow">
+        <div class="container">
+            <div id="flow-display" class="flow-container">
+                <div class="section-header">
+                    <h2>一体式解决方案</h2>
+                </div>
+                <div class="flow-placeholder feature-image">
+                    <img src="assets/features.png" alt="AI Image Generation">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="ctadownload" class="download" style="padding: 100px 0;">
+        <div class="container">
+            <div class="download-card">
+                <h1>ArcherDoc AI <br>让文档处理更智能</h1>
+                <p>利用先进生成式AI技术，一键实现多格式文档翻译、视频解说生成与社交媒体文案转化。</p>
+                <div style="margin-top: 3rem;">
+                    <a href="download.html" class="btn-large">前往下载中心</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2025 ArcherDoc AI. All formatting preserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+
+</html>

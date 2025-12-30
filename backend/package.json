@@ -1,0 +1,41 @@
+{
+  "name": "archerdoc-ai-backend",
+  "version": "1.0.0",
+  "description": "ArcherDoc AI 核心后端服务",
+  "main": "src/server.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon --ignore jobs/ --ignore uploads/ --exec tsx src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ppt",
+    "ai",
+    "translation"
+  ],
+  "author": "ArcherDoc AI",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "fluent-ffmpeg": "^2.1.3",
+    "jszip": "^3.10.1",
+    "multer": "^2.0.2",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^25.0.3",
+    "@types/uuid": "^10.0.0",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

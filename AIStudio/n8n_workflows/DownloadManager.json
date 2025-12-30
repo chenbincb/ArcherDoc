@@ -1,0 +1,253 @@
+{
+  "name": "DownloadManager",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "api/download-video/:jobId",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1072,
+        -496
+      ],
+      "id": "313edc56-ba84-443f-9927-971f275e1b24",
+      "name": "接收视频下载请求",
+      "webhookId": "ae67da68-8083-44da-81e8-773b6b031d0d"
+    },
+    {
+      "parameters": {
+        "path": "api/download-article/:jobId",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1072,
+        -352
+      ],
+      "id": "08835e4b-bbcf-4e79-b2ca-550eaa69f793",
+      "name": "接收文章下载请求",
+      "webhookId": "article-download-webhook"
+    },
+    {
+      "parameters": {
+        "path": "api/download-file/:jobId/:fileName",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1072,
+        -208
+      ],
+      "id": "download-file-webhook",
+      "name": "接收文件下载请求",
+      "webhookId": "download-file-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "jobId",
+              "name": "jobId",
+              "value": "={{ $json.params.jobId }}",
+              "type": "string"
+            },
+            {
+              "id": "fileName",
+              "name": "fileName",
+              "value": "={{ $json.params.fileName || ($json.webhookUrl.includes('video') ? `video_${$json.params.jobId}.mp4` : `article_${$json.params.jobId}.txt`) }}",
+              "type": "string"
+            },
+            {
+              "id": "downloadType",
+              "name": "downloadType",
+              "value": "={{ $json.webhookUrl.includes('video') ? 'video' : $json.webhookUrl.includes('file') ? 'file' : 'article' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1312,
+        -416
+      ],
+      "id": "f1e6518d-cc59-4c80-9eac-877cca9c0c42",
+      "name": "设置下载参数"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 根据下载类型和文件名设置文件路径和内容类型\nconst jobId = $('设置下载参数').item.json.jobId;\nconst fileName = $('设置下载参数').item.json.fileName;\nconst downloadType = $('设置下载参数').item.json.downloadType;\n\nlet filePath, contentType;\n\nif (downloadType === 'video') {\n  filePath = `/home/n8n/AIStudio/jobs/${jobId}/final_video.mp4`;\n  contentType = 'video/mp4';\n} else if (downloadType === 'file') {\n  // 文件下载：根据文件名决定路径和类型\n  filePath = `/home/n8n/AIStudio/jobs/${jobId}/exports/${fileName}`;\n  \n  // 根据文件扩展名确定MIME类型\n  if (fileName.endsWith('.html')) {\n    contentType = 'text/html';\n  } else if (fileName.endsWith('.md')) {\n    contentType = 'text/markdown';\n  } else if (fileName.endsWith('.txt')) {\n    contentType = 'text/plain; charset=utf-8';\n  } else if (fileName.endsWith('.json')) {\n    contentType = 'application/json';\n  } else {\n    contentType = 'application/octet-stream';\n  }\n} else {\n  // 文章下载\n  filePath = `/home/n8n/AIStudio/jobs/${jobId}/generated_article.txt`;\n  contentType = 'text/plain; charset=utf-8';\n}\n\nreturn {\n  json: {\n    jobId: jobId,\n    fileName: fileName,\n    filePath: filePath,\n    contentType: contentType,\n    downloadType: downloadType\n  }\n};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        -416
+      ],
+      "id": "set-file-path",
+      "name": "设置文件路径"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $json.filePath}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        -416
+      ],
+      "id": "6c9a8ea5-4419-4737-9ed7-f2a08db79765",
+      "name": "读取文件"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "={{ $('设置文件路径').item.json.contentType }}"
+              },
+              {
+                "name": "Content-Disposition",
+                "value": "=attachment; filename={{ $('设置文件路径').item.json.fileName }}"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2032,
+        -416
+      ],
+      "id": "fe4a1063-ca8a-426a-8008-53dac2cfc64b",
+      "name": "返回文件下载"
+    }
+  ],
+  "pinData": {
+    "接收文章下载请求": [
+      {
+        "json": {
+          "headers": {
+            "host": "178.109.129.11:5678",
+            "connection": "keep-alive",
+            "pragma": "no-cache",
+            "cache-control": "no-cache",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+            "accept": "*/*",
+            "origin": "http://localhost:3014",
+            "referer": "http://localhost:3014/",
+            "accept-encoding": "gzip, deflate",
+            "accept-language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ru;q=0.6"
+          },
+          "params": {
+            "jobId": "313"
+          },
+          "query": {},
+          "body": {},
+          "webhookUrl": "http://178.109.129.11:5678/webhook/article-download-webhook/api/download-article/:jobId",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "接收视频下载请求": {
+      "main": [
+        [
+          {
+            "node": "设置下载参数",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "接收文章下载请求": {
+      "main": [
+        [
+          {
+            "node": "设置下载参数",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "接收文件下载请求": {
+      "main": [
+        [
+          {
+            "node": "设置下载参数",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "设置下载参数": {
+      "main": [
+        [
+          {
+            "node": "设置文件路径",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "设置文件路径": {
+      "main": [
+        [
+          {
+            "node": "读取文件",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "读取文件": {
+      "main": [
+        [
+          {
+            "node": "返回文件下载",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bb13bd07-7e02-40b6-a7cc-42bf24e311d0",
+  "meta": {
+    "instanceId": "9c723152ae5c73f3daf04b813963449b95b961e12fce231294f9a96ef3926dd9"
+  },
+  "id": "LYEcDK5RMHDkOYJw",
+  "tags": []
+}

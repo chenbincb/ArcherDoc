@@ -1,0 +1,5 @@
+{
+  "name": "ArcherDoc AI",
+  "description": "Professional PowerPoint processing tool with translation, video generation and article creation, supporting Gemini, Ollama, and OpenRouter with layout preservation and smart font resizing.",
+  "requestFramePermissions": []
+}

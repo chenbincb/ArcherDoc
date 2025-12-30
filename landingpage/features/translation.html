@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档智能翻译 - ArcherDoc AI</title>
+    <link rel="stylesheet" href="../style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .detail-page {
+            padding-top: 140px;
+            padding-bottom: 100px;
+        }
+
+        .flow-visual-container {
+            margin: 80px 0;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 60px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .detailed-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .flow-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 20px;
+        }
+
+        .flow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 60px;
+            right: -20%;
+            width: 40%;
+            height: 2px;
+            background: linear-gradient(to right, var(--accent-color), transparent);
+        }
+
+        .step-icon-box {
+            width: 80px;
+            height: 80px;
+            background: var(--surface-color);
+            border: 1px solid var(--accent-color);
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 0 20px var(--accent-glow);
+            transition: var(--transition);
+        }
+
+        .flow-step:hover .step-icon-box {
+            transform: translateY(-10px) scale(1.1);
+        }
+
+        .step-info h4 {
+            font-size: 1.25rem;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .step-info p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .feature-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            margin-top: 80px;
+        }
+
+        .detail-card {
+            background: var(--surface-color);
+            padding: 3rem;
+            border-radius: 32px;
+            border: 1px solid var(--border);
+        }
+
+        .detail-card h3 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+
+        .detail-card li {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            list-style-type: none;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .detail-card li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo"><a href="../index.html" style="text-decoration: none; color: inherit;">ArcherDoc AI ·
+                    安超云</a></div>
+            <button class="mobile-menu-btn" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <ul class="nav-links">
+                <li><a href="translation.html">文档翻译</a></li>
+                <li><a href="video.html">视频生成</a></li>
+                <li><a href="article.html">文章生成</a></li>
+                <li><a href="image.html">AI配图</a></li>
+                <li><a href="font.html">字体管理</a></li>
+                <li><a href="../download.html">下载中心</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container detail-page">
+        <div class="section-header">
+            <span class="feature-tag">Smart Translation</span>
+            <h1>文档翻译详细使用流程</h1>
+            <p>基于先进的 LLM 架构，为您的演示文稿提供超越字面的跨语言转换体验。</p>
+        </div>
+
+
+
+        <div class="flow-visual-container">
+            <div class="detailed-flow">
+                <div class="flow-step">
+                    <div class="step-icon-box">📂</div>
+                    <div class="step-info">
+                        <h4>上传文件</h4>
+                        <p>将文件拖拽至处理区域，系统自动解析文档元数据。</p>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">⚙️</div>
+                    <div class="step-info">
+                        <h4>智能配置</h4>
+                        <p>选择目标语言及 AI 多引擎，配置专属术语词典。</p>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">⚡</div>
+                    <div class="step-info">
+                        <h4>流式翻译</h4>
+                        <p>实时预览动态翻译过程，精准监控每一张幻灯片进度。</p>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">💾</div>
+                    <div class="step-info">
+                        <h4>自适应导出</h4>
+                        <p>自动计算译文长度并调整排版，完美保留原图表与动画效果。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-image">
+            <img src="../assets/translation_s.png" alt="Article Generation">
+        </div>
+
+        <div class="feature-details">
+            <div class="detail-card">
+                <h3>排版保护技术</h3>
+                <ul>
+                    <li><strong>自适应字号：</strong> 解决长句溢出问题。</li>
+                    <li><strong>样式锚定：</strong> 保留加粗、斜体、阴影等精细特效。</li>
+                    <li><strong>占位符映射：</strong> 确保文本框、形状定位 100% 准确。</li>
+                </ul>
+            </div>
+            <div class="detail-card">
+                <h3>语言智能处理</h3>
+                <ul>
+                    <li><strong>语境增强：</strong> 基于全文逻辑理解歧义词。</li>
+                    <li><strong>专业术语匹配：</strong> 强制应用自定义行业词库。</li>
+                    <li><strong>多语种互译：</strong> 支持中、英、日、韩、德等 50+ 语言。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div class="footer-bottom">
+                &copy; 2026 安超云软件有限公司. All rights reserved.
+            </div>
+        </div>
+    </footer>
+    <script src="../main.js"></script>
+</body>
+
+</html>

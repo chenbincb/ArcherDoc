@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章生成 - ArcherDoc AI</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .detail-page {
+            padding-top: 140px;
+            padding-bottom: 100px;
+        }
+
+        .flow-visual-container {
+            margin: 80px 0;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 60px;
+        }
+
+        .detailed-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .flow-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 20px;
+        }
+
+        .flow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 60px;
+            right: -20%;
+            width: 40%;
+            height: 2px;
+            background: linear-gradient(to right, #10b981, transparent);
+        }
+
+        .step-icon-box {
+            width: 80px;
+            height: 80px;
+            background: var(--surface-color);
+            border: 1px solid #10b981;
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+        }
+
+        .feature-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            margin-top: 80px;
+        }
+
+        .detail-card {
+            background: var(--surface-color);
+            padding: 3rem;
+            border-radius: 32px;
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo"><a href="../index.html" style="text-decoration: none; color: inherit;">ArcherDoc AI ·
+                    安超云</a></div>
+            <button class="mobile-menu-btn" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <ul class="nav-links">
+                <li><a href="translation.html">文档翻译</a></li>
+                <li><a href="video.html">视频生成</a></li>
+                <li><a href="article.html">文章生成</a></li>
+                <li><a href="image.html">AI配图</a></li>
+                <li><a href="font.html">字体管理</a></li>
+                <li><a href="../download.html">下载中心</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container detail-page">
+        <div class="section-header">
+            <h1>各平台文章智能创作流程</h1>
+            <p>将深度 文档 演示内容解构并重组为各个主流社交平台的爆款文章风格。</p>
+        </div>
+        <div class="flow-visual-container">
+            <div class="detailed-flow">
+                <div class="flow-step">
+                    <div class="step-icon-box">📊</div>
+                    <h4>主体解析</h4>
+                    <p>抽取 文档 核心逻辑与金句内容。</p>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">📱</div>
+                    <h4>风格对齐</h4>
+                    <p>选择公众号、小红书、知乎等目标分发场景。</p>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">✍️</div>
+                    <h4>语义生成</h4>
+                    <p>大模型执行深度创作，自动构建文章起承转合。</p>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">📤</div>
+                    <h4>合规导出</h4>
+                    <p>Markdown 格式输出，一键适配全网排版器。</p>
+                </div>
+            </div>
+        </div>
+        <div class="feature-image">
+            <img src="../assets/article_s.png" alt="Article Generation">
+        </div>
+        <div class="feature-details">
+            <div class="detail-card">
+                <h3>覆盖场景</h3>
+                <ul>
+                    <li>微信公众号：深度长文模式</li>
+                    <li>小红书：轻快种草图文</li>
+                    <li>知乎：硬核专业问答</li>
+                </ul>
+            </div>
+            <div class="detail-card">
+                <h3>核心能力</h3>
+                <ul>
+                    <li>情感化叙事重构</li>
+                    <li>自动标题生成</li>
+                    <li>全文逻辑一致性校验</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <div class="container">
+            <div class="footer-bottom">
+                &copy; 2026 安超云软件有限公司. All rights reserved.
+            </div>
+        </div>
+    </footer>
+    <script src="../main.js"></script>
+</body>
+
+</html>

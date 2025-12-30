@@ -1,0 +1,395 @@
+{
+  "name": "SaveWorkflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "api/save-content",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        -288
+      ],
+      "id": "a9f4cc3a-fd2e-424f-8f1d-66f4da530144",
+      "name": "接收保存请求",
+      "webhookId": "save-content-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "contentType",
+              "name": "contentType",
+              "value": "={{ $json.body.contentType || 'article' }}",
+              "type": "string"
+            },
+            {
+              "id": "jobId",
+              "name": "jobId",
+              "value": "={{ $json.body.jobId }}",
+              "type": "string"
+            },
+            {
+              "id": "content",
+              "name": "content",
+              "value": "={{ $json.body.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        176,
+        -288
+      ],
+      "id": "5aee10aa-a361-4208-bea2-7a75596f6aa6",
+      "name": "解析参数"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-article",
+              "leftValue": "={{ $json.contentType }}",
+              "rightValue": "article",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -288
+      ],
+      "id": "f8a3b76d-f7aa-442b-a403-91671256bbd4",
+      "name": "判断内容类型"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/n8n/AIStudio/jobs/{{ $('解析参数').item.json.jobId }}/generated_article.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        512,
+        -496
+      ],
+      "id": "d3139c9d-6962-44ee-bd41-c6980461a39f",
+      "name": "读取现有文章"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        656,
+        -496
+      ],
+      "id": "58a8768d-7778-422f-a788-9aadb21a0c6e",
+      "name": "解析文章JSON"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/n8n/AIStudio/jobs/{{ $('解析参数').item.json.jobId }}/notes.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        512,
+        -96
+      ],
+      "id": "5634f930-3b38-4c06-a930-88fa6424bd15",
+      "name": "读取现有讲稿"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        656,
+        -96
+      ],
+      "id": "14e7550f-ed62-40b8-b15e-fc2b0a2815c0",
+      "name": "解析讲稿JSON"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/n8n/AIStudio/jobs/{{ $('接收保存请求').item.json.body.jobId }}/generated_article.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        944,
+        -496
+      ],
+      "id": "4d7cce2e-6eee-4969-97fb-e0fa8d7bbddb",
+      "name": "保存文章JSON"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/n8n/AIStudio/jobs/{{ $('接收保存请求').item.json.body.jobId }}/notes.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        944,
+        -96
+      ],
+      "id": "a1342023-b542-4aca-8b7e-28909f6a48bf",
+      "name": "保存讲稿JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 生成保存成功响应\nconst contentType = $json.contentType;\nconst jobId = $json.jobId;\nconst timestamp = new Date().toISOString();\nconst baseDir = `/home/n8n/AIStudio/jobs/${jobId}`;\n\nif (contentType === 'article') {\n  return {\n    success: true,\n    message: '文章保存成功',\n    contentType: 'article',\n    savedAt: timestamp,\n    savedFile: `${baseDir}/generated_article.json`,\n    jobId: jobId\n  };\n} else {\n  return {\n    success: true,\n    message: '讲稿保存成功',\n    contentType: 'video_notes',\n    savedAt: timestamp,\n    savedFile: `${baseDir}/notes.json`,\n    jobId: jobId\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        -288
+      ],
+      "id": "b9b274c7-5586-49c6-845a-714d178a5049",
+      "name": "生成保存响应"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('生成保存响应').item.json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1424,
+        -288
+      ],
+      "id": "0502a3aa-d93a-4f7a-9c4c-897b1574805f",
+      "name": "返回成功响应"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 根据内容类型设置保存数据\nconst contentType = $('解析参数').item.json.contentType;\nconst jobId = $('解析参数').item.json.jobId;\nconst content = $('解析参数').item.json.content;\n\nif (contentType === 'article') {\n  // 文章：保留原结构，只替换content\n  const existingData = $('解析文章JSON').first().json.data;\n  const updatedData = {\n    ...existingData,\n    article: {\n      ...existingData.article,\n      content: content,\n      word_count: content.split(/\\s+/).filter(word => word.length > 0).length\n    }\n  };\n  \n  // 转换为二进制格式\n  const jsonString = JSON.stringify(updatedData, null, 2);\n  const buffer = Buffer.from(jsonString, 'utf-8');\n  \n  return {\n    json: {\n      contentType: contentType,\n      jobId: jobId\n    },\n    binary: {\n      'data': {\n        data: buffer,\n        fileName: 'generated_article.json',\n        mimeType: 'application/json'\n      }\n    }\n  };\n} else {\n  // 讲稿：直接使用传递的完整数组\n  let notesArray;\n  \n  // 如果content是字符串，尝试解析为数组\n  if (typeof content === 'string') {\n    try {\n      notesArray = JSON.parse(content);\n    } catch (e) {\n      // 如果解析失败，说明可能是直接传递的数组\n      notesArray = content;\n    }\n  } else {\n    // 如果已经是对象/数组，直接使用\n    notesArray = content;\n  }\n  \n  // 转换为二进制格式\n  const jsonString = JSON.stringify(notesArray, null, 2);\n  const buffer = Buffer.from(jsonString, 'utf-8');\n  \n  return {\n    json: {\n      contentType: contentType,\n      jobId: jobId\n    },\n    binary: {\n      'data': {\n        data: buffer,\n        fileName: 'notes.json',\n        mimeType: 'application/json'\n      }\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -496
+      ],
+      "id": "cf416c35-1886-4d7a-a00a-7309230311d5",
+      "name": "设置文章数据"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 根据内容类型设置保存数据\nconst contentType = $('解析参数').item.json.contentType;\nconst jobId = $('解析参数').item.json.jobId;\nconst content = $('解析参数').item.json.content;\n\nif (contentType === 'article') {\n  // 文章：保留原结构，只替换content\n  const existingData = $('解析文章JSON').first().json.data;\n  const updatedData = {\n    ...existingData,\n    article: {\n      ...existingData.article,\n      content: content,\n      word_count: content.split(/\\s+/).filter(word => word.length > 0).length\n    }\n  };\n  \n  // 转换为二进制格式\n  const jsonString = JSON.stringify(updatedData, null, 2);\n  const buffer = Buffer.from(jsonString, 'utf-8');\n  \n  return {\n    json: {\n      contentType: contentType,\n      jobId: jobId\n    },\n    binary: {\n      'data': {\n        data: buffer,\n        fileName: 'generated_article.json',\n        mimeType: 'application/json'\n      }\n    }\n  };\n} else {\n  // 讲稿：直接使用传递的完整数组\n  let notesArray;\n  \n  // 如果content是字符串，尝试解析为数组\n  if (typeof content === 'string') {\n    try {\n      notesArray = JSON.parse(content);\n    } catch (e) {\n      // 如果解析失败，说明可能是直接传递的数组\n      notesArray = content;\n    }\n  } else {\n    // 如果已经是对象/数组，直接使用\n    notesArray = content;\n  }\n  \n  // 转换为二进制格式\n  const jsonString = JSON.stringify(notesArray, null, 2);\n  const buffer = Buffer.from(jsonString, 'utf-8');\n  \n  return {\n    json: {\n      contentType: contentType,\n      jobId: jobId\n    },\n    binary: {\n      'data': {\n        data: buffer,\n        fileName: 'notes.json',\n        mimeType: 'application/json'\n      }\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -96
+      ],
+      "id": "2111abc5-a4b9-47b8-abf2-df7bdf042139",
+      "name": "设置讲稿数据"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "接收保存请求": {
+      "main": [
+        [
+          {
+            "node": "解析参数",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "解析参数": {
+      "main": [
+        [
+          {
+            "node": "判断内容类型",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "判断内容类型": {
+      "main": [
+        [
+          {
+            "node": "读取现有文章",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "读取现有讲稿",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "读取现有文章": {
+      "main": [
+        [
+          {
+            "node": "解析文章JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "读取现有讲稿": {
+      "main": [
+        [
+          {
+            "node": "解析讲稿JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "解析文章JSON": {
+      "main": [
+        [
+          {
+            "node": "设置文章数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "解析讲稿JSON": {
+      "main": [
+        [
+          {
+            "node": "设置讲稿数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "保存文章JSON": {
+      "main": [
+        [
+          {
+            "node": "生成保存响应",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "保存讲稿JSON": {
+      "main": [
+        [
+          {
+            "node": "生成保存响应",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "生成保存响应": {
+      "main": [
+        [
+          {
+            "node": "返回成功响应",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "设置文章数据": {
+      "main": [
+        [
+          {
+            "node": "保存文章JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "设置讲稿数据": {
+      "main": [
+        [
+          {
+            "node": "保存讲稿JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "37f6b41a-0aa9-4fc4-93fa-6f7a082f2d56",
+  "meta": {
+    "instanceId": "9c723152ae5c73f3daf04b813963449b95b961e12fce231294f9a96ef3926dd9"
+  },
+  "id": "F65SAIk9dwm8GgC3",
+  "tags": []
+}

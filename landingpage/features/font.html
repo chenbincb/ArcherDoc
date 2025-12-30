@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>字体管理 - ArcherDoc AI</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .detail-page {
+            padding-top: 140px;
+            padding-bottom: 100px;
+        }
+
+        .flow-visual-container {
+            margin: 80px 0;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 60px;
+        }
+
+        .detailed-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .flow-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 20px;
+        }
+
+        .flow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 60px;
+            right: -20%;
+            width: 40%;
+            height: 2px;
+            background: linear-gradient(to right, #6366f1, transparent);
+        }
+
+        .step-icon-box {
+            width: 80px;
+            height: 80px;
+            background: var(--surface-color);
+            border: 1px solid #6366f1;
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .feature-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            margin-top: 80px;
+        }
+
+        .detail-card {
+            background: var(--surface-color);
+            padding: 3rem;
+            border-radius: 32px;
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo"><a href="../index.html" style="text-decoration: none; color: inherit;">ArcherDoc AI ·
+                    安超云</a></div>
+            <button class="mobile-menu-btn" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <ul class="nav-links">
+                <li><a href="translation.html">文档翻译</a></li>
+                <li><a href="video.html">视频生成</a></li>
+                <li><a href="article.html">文章生成</a></li>
+                <li><a href="image.html">AI配图</a></li>
+                <li><a href="font.html">字体管理</a></li>
+                <li><a href="../download.html">下载中心</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container detail-page">
+        <div class="section-header">
+            <h1>全局字体统合全流程</h1>
+            <p>一键扫描并标准化您的演示文稿视觉语言，确保品牌形象的极致统一。</p>
+        </div>
+        <div class="flow-visual-container">
+            <div class="detailed-flow">
+                <div class="flow-step">
+                    <div class="step-icon-box">🔡</div>
+                    <h4>字体扫描</h4>
+                    <p>遍历所有文本框，识别现有字体类型与字号分布。</p>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">🖱️</div>
+                    <h4>标准定义</h4>
+                    <p>在库中选择一款主字体作为全局视觉基准。</p>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">🔄</div>
+                    <h4>全量替换</h4>
+                    <p>系统自动执行跨页面字体重置，保持各级标题层级。</p>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">🛡️</div>
+                    <h4>版式锁定</h4>
+                    <p>AI 检查段落间隙，确保替换后无重叠或溢出现象。</p>
+                </div>
+            </div>
+        </div>
+        <div class="feature-image">
+            <img src="../assets/font_s.png" alt="Article Generation">
+        </div>
+        <div class="feature-details">
+            <div class="detail-card">
+                <h3>精选库支持</h3>
+                <ul>
+                    <li>思源黑体、苹方、微软雅黑</li>
+                    <li>商用免费艺术字体库</li>
+                    <li>自定义企业专属字体导入</li>
+                </ul>
+            </div>
+            <div class="detail-card">
+                <h3>排版智能</h3>
+                <ul>
+                    <li>中英文混合排版优化</li>
+                    <li>字重自动匹配</li>
+                    <li>历史选择记忆功能</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <div class="container">
+            <div class="footer-bottom">
+                &copy; 2026 安超云软件有限公司. All rights reserved.
+            </div>
+        </div>
+    </footer>
+    <script src="../main.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,151 @@
+{
+  "name": "ServeMediaFiles",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "jobId",
+              "name": "jobId",
+              "value": "={{ $json.params.jobId }}",
+              "type": "string"
+            },
+            {
+              "id": "mediaType",
+              "name": "mediaType",
+              "value": "={{ $json.params.mediaType }}",
+              "type": "string"
+            },
+            {
+              "id": "fileName",
+              "name": "fileName",
+              "value": "={{ $json.params.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "filePath",
+              "name": "filePath",
+              "value": "={{ $json.params.mediaType === 'images' ? `/home/n8n/AIStudio/jobs/${$json.params.jobId}/slides/${$json.params.fileName}` : ($json.params.mediaType === 'audio' ? `/home/n8n/AIStudio/jobs/${$json.params.jobId}/audio/${$json.params.fileName}` : ($json.params.mediaType === 'video' ? `/home/n8n/AIStudio/jobs/${$json.params.jobId}/video/${$json.params.fileName}` : `/home/n8n/AIStudio/jobs/${$json.params.jobId}/${$json.params.fileName}` )) }}",
+              "type": "string"
+            },
+            {
+              "id": "contentType",
+              "name": "contentType",
+              "value": "={{ $json.params.fileName.endsWith('.mp4') ? 'video/mp4' : ($json.params.fileName.endsWith('.mp3') ? 'audio/mpeg' : 'image/png') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        800,
+        -208
+      ],
+      "id": "a7b0b246-0190-484d-a2a0-ba78c0e6128e",
+      "name": "设置文件参数"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $('设置文件参数').item.json.filePath }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        -208
+      ],
+      "id": "e0efb8d4-34af-47aa-9ade-f292d2f01321",
+      "name": "读取文件"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "={{ $('设置文件参数').item.json.contentType }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1280,
+        -208
+      ],
+      "id": "5d1f3b0d-cbf5-42ad-958c-de37b7c2ab1b",
+      "name": "返回文件"
+    },
+    {
+      "parameters": {
+        "path": "api/slides-data/:jobId/:mediaType/:fileName",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        592,
+        -208
+      ],
+      "id": "67f2b36e-8dca-4a6a-bae6-a05a3138a0ac",
+      "name": "Webhook",
+      "webhookId": "servefiles"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "设置文件参数",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "设置文件参数": {
+      "main": [
+        [
+          {
+            "node": "读取文件",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "读取文件": {
+      "main": [
+        [
+          {
+            "node": "返回文件",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dfff9dcf-e0d6-47b0-8f02-558d66797f8e",
+  "meta": {
+    "instanceId": "9c723152ae5c73f3daf04b813963449b95b961e12fce231294f9a96ef3926dd9"
+  },
+  "id": "rB9yIhz8ioDexhcg",
+  "tags": []
+}

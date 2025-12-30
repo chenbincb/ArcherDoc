@@ -1,0 +1,35 @@
+[Unit]
+Description=Coqui TTS GPU Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=exec
+User=n8n
+Group=n8n
+WorkingDirectory=/home/n8n/AIStudio/Coqui
+Environment=PATH=/home/n8n/AIStudio/venv/bin
+Environment=PYTHONPATH=/home/n8n/AIStudio/Coqui:/home/n8n/AIStudio/scripts
+ExecStart=/home/n8n/AIStudio/venv/bin/gunicorn tts_service:app -c gunicorn_conf.py
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# 重启策略
+Restart=always
+RestartSec=10
+StartLimitInterval=0
+
+# 安全配置
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/n8n/AIStudio/jobs/audio /var/log/tts_service /home/n8n/AIStudio/Coqui
+
+# 资源限制
+LimitNOFILE=65536
+
+# 环境变量
+Environment=CUDA_VISIBLE_DEVICES=0
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

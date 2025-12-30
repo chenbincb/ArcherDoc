@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 配图 - ArcherDoc AI</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .detail-page {
+            padding-top: 140px;
+            padding-bottom: 100px;
+        }
+
+        .flow-visual-container {
+            margin: 80px 0;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 60px;
+        }
+
+        .detailed-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .flow-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 20px;
+        }
+
+        .flow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 60px;
+            right: -20%;
+            width: 40%;
+            height: 2px;
+            background: linear-gradient(to right, #f59e0b, transparent);
+        }
+
+        .step-icon-box {
+            width: 80px;
+            height: 80px;
+            background: var(--surface-color);
+            border: 1px solid #f59e0b;
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+        }
+
+        .feature-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            margin-top: 80px;
+        }
+
+        .detail-card {
+            background: var(--surface-color);
+            padding: 3rem;
+            border-radius: 32px;
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo"><a href="../index.html" style="text-decoration: none; color: inherit;">ArcherDoc AI ·
+                    安超云</a></div>
+            <button class="mobile-menu-btn" aria-label="Toggle navigation">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <ul class="nav-links">
+                <li><a href="translation.html">文档翻译</a></li>
+                <li><a href="video.html">视频生成</a></li>
+                <li><a href="article.html">文章生成</a></li>
+                <li><a href="image.html">AI配图</a></li>
+                <li><a href="font.html">字体管理</a></li>
+                <li><a href="../download.html">下载中心</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="container detail-page">
+        <div class="section-header">
+            <h1>AI 视觉增强全流程</h1>
+            <p>通过提示词工程，为您的文档自动匹配并生成影视级的视觉素材。</p>
+        </div>
+        <div class="flow-visual-container">
+            <div class="detailed-flow">
+                <div class="flow-step">
+                    <div class="step-icon-box">🔍</div>
+                    <h4>视觉扫描</h4>
+                    <p>AI 识别页面主题词与构图需求。</p>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">🖌️</div>
+                    <h4>提示词优化</h4>
+                    <p>自动将普通描述转化为专业绘画提示词。</p>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">🎨</div>
+                    <h4>图像渲染</h4>
+                    <p>ComfyUI/NanoBanana 启动高清图像算法。</p>
+                </div>
+                <div class="flow-step">
+                    <div class="step-icon-box">🖼️</div>
+                    <h4>画布应用</h4>
+                    <p>自动裁剪、缩放并替换至 文档 背景或容器中。</p>
+                </div>
+            </div>
+        </div>
+        <div class="feature-image">
+            <img src="../assets/image_s.png" alt="Article Generation">
+        </div>
+        <div class="feature-details">
+            <div class="detail-card">
+                <h3>视觉风格库</h3>
+                <ul>
+                    <li>写实摄影风格</li>
+                    <li>极简 3D 渲染</li>
+                    <li>艺术水彩插画</li>
+                </ul>
+            </div>
+            <div class="detail-card">
+                <h3>核心优势</h3>
+                <ul>
+                    <li>1k/2k/4k 精度可选</li>
+                    <li>10 种常见宽高比适配</li>
+                    <li>完全隐私的本地化部署</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <div class="container">
+            <div class="footer-bottom">
+                &copy; 2026 安超云软件有限公司. All rights reserved.
+            </div>
+        </div>
+    </footer>
+    <script src="../main.js"></script>
+</body>
+
+</html>

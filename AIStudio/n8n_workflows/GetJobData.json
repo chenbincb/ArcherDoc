@@ -1,0 +1,219 @@
+{
+  "name": "GetJobData",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "api/get-job-data",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        688,
+        -272
+      ],
+      "id": "1973236b-433f-4dac-bec4-f9d1483b954c",
+      "name": "Webhook",
+      "webhookId": "caa0ec30-f574-4047-876e-93f03ba6cf21"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "condition-image",
+              "leftValue": "={{ $json.query.type }}",
+              "rightValue": "=image",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-video",
+              "leftValue": "={{ $json.query.type }}",
+              "rightValue": "=video",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -272
+      ],
+      "id": "2ed5e64e-9813-4f93-aac0-7ebcd8270f20",
+      "name": "检查请求类型"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/n8n/AIStudio/jobs/{{ $('Webhook').item.json.query.jobId }}/image_data.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        -336
+      ],
+      "id": "d16990eb-a3eb-47aa-995e-469c88bd35f3",
+      "name": "读取图片数据"
+    },
+    {
+      "parameters": {
+        "fileSelector": "=/home/n8n/AIStudio/jobs/{{ $('Webhook').item.json.query.jobId }}/notes.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        -208
+      ],
+      "id": "7a616608-7be5-404b-96a2-4408edb59f24",
+      "name": "读取讲稿"
+    },
+    {
+      "parameters": {
+        "operation": "fromJson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        -272
+      ],
+      "id": "c129b6cb-3187-431a-b081-d86afabf3cf2",
+      "name": "转为json格式"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 从 \"Read File\" 节点获取 notes 数据\nconst notesData = $('转为json格式').item.json.data;\n\n// 构建最终要返回给前端的JSON对象，只返回 notes 数组\nconst finalResponse = {\n  data: {\n    notes: notesData\n  }\n};\n\n// 返回这个最终对象，它将成为整个工作流的输出\nreturn finalResponse;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        -272
+      ],
+      "id": "33646b22-05d5-4bb9-afe1-ce3a205fd30c",
+      "name": "返回讲稿数据"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "178.109.129.11:5678",
+            "connection": "keep-alive",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+            "accept": "*/*",
+            "origin": "http://localhost:3000",
+            "referer": "http://localhost:3000/",
+            "accept-encoding": "gzip, deflate",
+            "accept-language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ru;q=0.6",
+            "if-none-match": "W/\"1e3d-g+OV4he0DJZC1jDSB3VgvO9zXcc\""
+          },
+          "params": {},
+          "query": {
+            "jobId": "2578",
+            "type": "image"
+          },
+          "body": {},
+          "webhookUrl": "http://178.109.129.11:5678/webhook/api/get-job-data",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "检查请求类型",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "检查请求类型": {
+      "main": [
+        [
+          {
+            "node": "读取图片数据",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "读取讲稿",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "读取图片数据": {
+      "main": [
+        [
+          {
+            "node": "转为json格式",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "读取讲稿": {
+      "main": [
+        [
+          {
+            "node": "转为json格式",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "转为json格式": {
+      "main": [
+        [
+          {
+            "node": "返回讲稿数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "614d2b62-4147-4fa5-a3f4-97ecd05c6985",
+  "meta": {
+    "instanceId": "9c723152ae5c73f3daf04b813963449b95b961e12fce231294f9a96ef3926dd9"
+  },
+  "id": "QX6QCxO3gs0LZzNm",
+  "tags": []
+}

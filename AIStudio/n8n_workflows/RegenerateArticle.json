@@ -1,0 +1,211 @@
+{
+  "name": "RegenerateArticle",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "regenerate-article",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        -496
+      ],
+      "id": "a3d35e40-dcac-45e7-834f-ebb1cf14e5ba",
+      "name": "接收重新生成请求",
+      "webhookId": "regenerate-article-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "job-id",
+              "name": "jobId",
+              "value": "={{ $json.body.jobId || $execution.id }}",
+              "type": "string"
+            },
+            {
+              "id": "job-dir",
+              "name": "jobDir",
+              "value": "={{ '/home/n8n/AIStudio/jobs/' + ($json.body.jobId || $execution.id) }}",
+              "type": "string"
+            },
+            {
+              "id": "article-style",
+              "name": "articleStyle",
+              "value": "={{ $json.body.articleStyle || 'wechat' }}",
+              "type": "string"
+            },
+            {
+              "id": "article-type",
+              "name": "articleType",
+              "value": "={{ $json.body.articleType || 'comprehensive' }}",
+              "type": "string"
+            },
+            {
+              "id": "custom-prompt",
+              "name": "customPrompt",
+              "value": "={{ $json.body.customPrompt || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "existing-article",
+              "name": "existingArticle",
+              "value": "={{ $json.body.existingArticle || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "ai-provider",
+              "name": "aiProvider",
+              "value": "={{ $json.body.aiProvider || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "ai-base-url",
+              "name": "aiBaseUrl",
+              "value": "={{ $json.body.aiBaseUrl || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "ai-model",
+              "name": "aiModel",
+              "value": "={{ $json.body.aiModel || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "ai-api-key",
+              "name": "aiApiKey",
+              "value": "={{ $json.body.aiApiKey || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        -496
+      ],
+      "id": "d8a9ca92-cd47-40bc-b76a-5972a4ff3553",
+      "name": "设置任务变量"
+    },
+    {
+      "parameters": {
+        "command": "=/home/n8n/AIStudio/venv/bin/python /home/n8n/AIStudio/scripts/generate_article.py --content-file {{ $('设置任务变量').item.json.jobDir }}/ppt_content.json --output-file {{ $('设置任务变量').item.json.jobDir }}/generated_article.txt --custom-prompt \"{{ $('设置任务变量').item.json.customPrompt }}\" --existing-article \"{{ $('设置任务变量').item.json.existingArticle }}\"{{ $('设置任务变量').item.json.aiBaseUrl ? ' --api-base-url ' + $('设置任务变量').item.json.aiBaseUrl : '' }}{{ $('设置任务变量').item.json.aiModel ? ' --model-name ' + $('设置任务变量').item.json.aiModel : '' }}{{ $('设置任务变量').item.json.aiApiKey ? ' --api-key ' + $('设置任务变量').item.json.aiApiKey : '' }}"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        848,
+        -496
+      ],
+      "id": "61963000-7152-4f3d-811a-076bc102e502",
+      "name": "生成公众号文章"
+    },
+    {
+      "parameters": {
+        "command": "=/home/n8n/AIStudio/venv/bin/python /home/n8n/AIStudio/scripts/combine_results.py --job-dir {{ $('设置任务变量').item.json.jobDir }} --job-id {{ $('设置任务变量').item.json.jobId }} --article-type {{ $('设置任务变量').item.json.articleType }}"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        -496
+      ],
+      "id": "49385633-80ff-4a67-9204-9d86259baa13",
+      "name": "组合结果数据"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.parse($json.stdout) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json; charset=utf-8"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1168,
+        -496
+      ],
+      "id": "2b9df4ec-2b17-4892-aac7-a5176f01163d",
+      "name": "返回成功响应"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "接收重新生成请求": {
+      "main": [
+        [
+          {
+            "node": "设置任务变量",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "设置任务变量": {
+      "main": [
+        [
+          {
+            "node": "生成公众号文章",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "生成公众号文章": {
+      "main": [
+        [
+          {
+            "node": "组合结果数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "组合结果数据": {
+      "main": [
+        [
+          {
+            "node": "返回成功响应",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3d7bda8f-6bd0-45bd-93c6-5eef7df439cb",
+  "meta": {
+    "instanceId": "9c723152ae5c73f3daf04b813963449b95b961e12fce231294f9a96ef3926dd9"
+  },
+  "id": "9yzbmbotEwFRou9N",
+  "tags": []
+}
