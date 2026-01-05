@@ -351,8 +351,11 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
           minimaxGroupId: localVideoSettings.minimaxGroupId,
           minimaxAccessToken: localVideoSettings.minimaxAccessToken,
           minimaxVoiceId: localVideoSettings.voiceId,
+          // Coqui TTS Params
           speakerWav: localVideoSettings.coquiSettings.speakerWav,
           gpuThresholdGb: localVideoSettings.coquiSettings.gpuThresholdGb,
+          // ✅ 增加空值合并，防止旧版缓存导致 url 为空
+          url: localVideoSettings.coquiSettings.url || 'http://178.109.129.11:8001/generate',
           qwenApiKey: localVideoSettings.qwenApiKey,
           qwenModel: localVideoSettings.qwenModel,
           qwenVoiceId: localVideoSettings.qwenVoiceId

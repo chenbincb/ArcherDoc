@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ImageGenerationSettings, ImageProvider, AppSettings, SlideImageData, GeneratedImage } from '../types';
 import { MagicTextDisplay } from '../components/MagicTextDisplay';
 import { SlidePreview } from '../components/SlidePreview';
+import { SceneTextPreview } from '../components/SceneTextPreview';
 import { DEFAULT_SETTINGS, N8N_CONFIG, API_ENDPOINTS } from '../constants';
 import * as JSZip from 'jszip';
 
@@ -87,10 +88,21 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
   // Loading state for prompt generation
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
 
-  // Update localImageSettings when appSettings changes
+  // 文本文档模式相关状态
+  const [isTextMode, setIsTextMode] = useState(false);
+  const [documentContent, setDocumentContent] = useState('');
+  const [selectedText, setSelectedText] = useState('');
+  const [processingDetail, setProcessingDetail] = useState<string>('');
+
+  // 图片版本切换状态：记录每个 slide 当前显示的版本索引
+  const [slideVersionIndexes, setSlideVersionIndexes] = useState<Record<number, number>>({});
+
+  // update localImageSettings when appSettings changes
   useEffect(() => {
     setLocalImageSettings(appSettings.imageSettings);
   }, [appSettings]);
+
+
 
   // Handle settings save
   const handleSaveSettings = (newSettings: AppSettings) => {
@@ -152,7 +164,8 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
     }));
   };
 
-  // Set all slides to default display PPT image initially
+  // Set all slides to default display PPT image initially (Removed: Handled by fetchSlideData to respect AI image existence)
+  /*
   useEffect(() => {
     if (slideDataList.length > 0 && Object.keys(slideImageDisplayStates).length === 0) {
       // Initialize all slides to show PPT image by default
@@ -163,8 +176,10 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       setSlideImageDisplayStates(initialStates);
     }
   }, [slideDataList.length]);
+  */
 
-  // Reset to show PPT image when switching slides
+  // Reset to show PPT image when switching slides (Removed: Preserve user's display preference)
+  /*
   useEffect(() => {
     // Whenever currentSlide changes, set current slide to show PPT image
     setSlideImageDisplayStates(prev => ({
@@ -172,72 +187,162 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       [currentSlide]: false // false means show PPT image
     }));
   }, [currentSlide]);
+  */
 
   // Fetch slide data from backend
   const fetchSlideData = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      setProcessingDetail('正在获取幻灯片数据...');
-      addLog('正在获取幻灯片数据...');
+      setProcessingDetail('正在获取任务数据...');
+      addLog('正在获取任务数据...');
 
       const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-job-data?jobId=${imageJobId}&type=image`);
 
       if (!response.ok) {
-        throw new Error(`获取幻灯片数据失败: ${response.statusText}`);
+        throw new Error(`获取数据失败: ${response.statusText}`);
       }
 
       const responseData = await response.json();
-      console.log('完整返回数据:', responseData);
       const data = responseData.data || responseData;
-      console.log('实际数据:', data);
 
-      // 解析API返回的image_data.json格式数据
-      let imageData: SlideImageData[] = [];
+      // 识别是否为文本文档模式
+      const originalFilename = data.metadata?.originalFilename || '';
+      const isText = originalFilename.match(/\.(docx|pdf|txt|md)$/i);
+      setIsTextMode(!!isText);
 
-      // 检查是否是image_data.json格式的数据（包含description和suggestedPrompt）
-      if (data.notes && Array.isArray(data.notes)) {
-        const hasImageData = data.notes.some((item: any) => item.description && item.suggestedPrompt);
-
-        if (hasImageData) {
-          // Image模式数据 - 直接根据notes生成图片路径
-          imageData = data.notes.map((item: any, index: number) => {
-            // 根据notes索引生成预期的图片文件名
-            const slideFileName = `slide_${index}.png`;
-            const imageUrl = buildMediaUrl(N8N_CONFIG.BASE_URL, imageJobId, 'images', slideFileName);
-            console.log(`幻灯片 ${index + 1} 图片URL:`, imageUrl);
-
-            return {
-              id: item.id || index + 1,
-              slideTitle: item.title || `幻灯片 ${index + 1}`,
-              slideContent: item.content || '',
-              imageUrl: imageUrl,
-              description: item.description || `第${index + 1}页PPT内容`,
-              suggestedPrompt: item.suggestedPrompt || `专业PPT插图，主题：${item.title || '未命名幻灯片'}，商务风格，高质量，清晰明亮`,
-              userPrompt: item.suggestedPrompt || `专业PPT插图，主题：${item.title || '未命名幻灯片'}，商务风格，高质量，清晰明亮`,
-              negativePrompt: localImageSettings.negativePrompt,
-              generationStatus: 'pending' as const,
-              errorMessage: undefined
-            };
-          });
-          console.log('使用API返回的image模式数据');
+      // 获取文档内容 (如果是文本模式)
+      let initialDescription = '基于文档内容或选划文字生成配图';
+      if (isText) {
+        try {
+          const docResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-doc-content?jobId=${imageJobId}`);
+          if (docResponse.ok) {
+            const docData = await docResponse.json();
+            const content = docData.data?.content || docData.data?.slides?.[0]?.content || '';
+            setDocumentContent(content);
+            initialDescription = content.substring(0, 1000);
+          }
+        } catch (e) {
+          console.error('获取文档内容失败:', e);
         }
       }
 
-      // 设置处理状态
-      setProcessingDetail('幻灯片数据加载完成');
-      addLog(`成功加载 ${imageData.length} 张幻灯片数据`);
+      // 解析场景/幻灯片数据
+      let imageData: SlideImageData[] = [];
+
+      if (isText) {
+        // 文本模式下，检查后端是否已生成提示词
+        const notes = data.notes || [];
+        if (notes.length > 0) {
+          // 文本模式下，尝试从 slides 获取版本
+          const slideInfo = data.slides?.[0];
+          imageData = notes.map((itemNode: any, index: number) => {
+            const versions = slideInfo?.generatedImageVersions || [];
+            const latestVersion = versions[0];
+            return {
+              id: itemNode.id || 1,
+              slideTitle: itemNode.title || '文本文档配图',
+              slideContent: itemNode.content || '',
+              imageUrl: null,
+              description: itemNode.description || itemNode.visual_concept || initialDescription,
+              suggestedPrompt: itemNode.suggestedPrompt || '',
+              userPrompt: itemNode.suggestedPrompt || '',
+              negativePrompt: localImageSettings.negativePrompt,
+              generationStatus: (latestVersion ? 'completed' : 'pending') as any,
+              generatedImageVersions: versions,
+              generatedImage: latestVersion ? {
+                id: `persisted_${index}_${Date.now()}`,
+                slideId: itemNode.id || 1,
+                url: latestVersion.url.startsWith('http') ? latestVersion.url : `${N8N_CONFIG.BASE_URL}${latestVersion.url}`,
+                thumbnailUrl: latestVersion.url.startsWith('http') ? latestVersion.url : `${N8N_CONFIG.BASE_URL}${latestVersion.url}`,
+                prompt: latestVersion.metadata.prompt,
+                negativePrompt: latestVersion.metadata.negativePrompt,
+                generationTime: latestVersion.metadata.generationTime,
+                provider: latestVersion.metadata.provider as ImageProvider,
+                width: latestVersion.metadata.width,
+                height: latestVersion.metadata.height,
+                fileSize: 0,
+                createdAt: latestVersion.metadata.createdAt
+              } : undefined
+            };
+          });
+        } else {
+          // 后端尚未生成提示词数据，使用默认值
+          const slideInfo = data.slides?.[0];
+          imageData = [{
+            id: 1,
+            slideTitle: '文本文档配图',
+            slideContent: '',
+            imageUrl: null,
+            description: initialDescription,
+            suggestedPrompt: '',
+            userPrompt: '',
+            negativePrompt: localImageSettings.negativePrompt,
+            generationStatus: 'pending' as const,
+            generatedImageVersions: slideInfo?.generatedImageVersions || []
+          }];
+        }
+      } else {
+        const notes = data.notes || [];
+        if (notes.length > 0) {
+          imageData = notes.map((item: any, index: number) => {
+            const slideId = item.id || index + 1;
+            const slideInfo = data.slides?.[index] || data.slides?.find((s: any) => s.id === (item.id || index + 1));
+            const extension = slideInfo?.imageExtension || '.png';
+            const slideFileName = `slide_${index}${extension}`; // 图片文件名从 0 开始
+            const imageUrl = buildMediaUrl(N8N_CONFIG.BASE_URL, imageJobId, 'images', slideFileName);
+
+            const versions = slideInfo?.generatedImageVersions || [];
+            const latestVersion = versions[0];
+
+            return {
+              id: slideId,
+              slideTitle: item.title || `幻灯片 ${index + 1}`,
+              slideContent: item.content || '',
+              imageUrl: imageUrl,
+              description: item.visual_concept || item.description || item.content || '',
+              suggestedPrompt: item.suggestedPrompt || `Professional illustration, theme: ${item.title}, tech style`,
+              userPrompt: item.suggestedPrompt || `Professional illustration, theme: ${item.title}, tech style`,
+              negativePrompt: localImageSettings.negativePrompt,
+              generationStatus: (latestVersion ? 'completed' : 'pending') as any,
+              generatedImageVersions: versions,
+              generatedImage: latestVersion ? {
+                id: `persisted_${index}_${Date.now()}`,
+                slideId: slideId,
+                url: latestVersion.url.startsWith('http') ? latestVersion.url : `${N8N_CONFIG.BASE_URL}${latestVersion.url}`,
+                thumbnailUrl: latestVersion.url.startsWith('http') ? latestVersion.url : `${N8N_CONFIG.BASE_URL}${latestVersion.url}`,
+                prompt: latestVersion.metadata.prompt,
+                negativePrompt: latestVersion.metadata.negativePrompt,
+                generationTime: latestVersion.metadata.generationTime,
+                provider: latestVersion.metadata.provider as ImageProvider,
+                width: latestVersion.metadata.width,
+                height: latestVersion.metadata.height,
+                fileSize: 0,
+                createdAt: latestVersion.metadata.createdAt
+              } : undefined
+            };
+          });
+        }
+      }
 
       setSlideDataList(imageData);
 
+      // 初始化每个幻灯片的显示状态：如果有 AI 图片则显示 AI 图片，否则显示 PPT 原图
+      const initialDisplayStates: Record<number, boolean> = {};
+      imageData.forEach((slide, idx) => {
+        initialDisplayStates[idx] = !!slide.generatedImage;
+      });
+      setSlideImageDisplayStates(initialDisplayStates);
+
+      setProcessingDetail('数据加载完成');
     } catch (err: any) {
-      console.error('获取幻灯片数据失败:', err);
-      setError(err.message || '获取幻灯片数据失败');
-      showNotification(err.message || '获取幻灯片数据失败', 'error');
+      console.error('获取任务数据失败:', err);
+      setError(err.message || '获取数据失败');
     } finally {
       setIsLoading(false);
     }
   };
+
 
   // Analyze slide content for image generation
   const analyzeSlideContent = async (slideIndex: number) => {
@@ -462,7 +567,12 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
             jobId: imageJobId,
             slideId: slideId,
             provider: 'nanobanana',
-            nanobananaResponseData: JSON.stringify(geminiResult)
+            nanobananaResponseData: JSON.stringify(geminiResult),
+            isTextMode: isTextMode,
+            prompt: currentSlideData.userPrompt,
+            negativePrompt: currentSlideData.negativePrompt || localImageSettings.negativePrompt,
+            width: localImageSettings.comfyuiSettings.width,
+            height: localImageSettings.comfyuiSettings.height
           }),
         });
       } else {
@@ -479,8 +589,8 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
             negativePrompt: currentSlideData.negativePrompt || localImageSettings.negativePrompt,
             width: localImageSettings.comfyuiSettings.width,
             height: localImageSettings.comfyuiSettings.height,
-            provider: 'comfyui',
-            nanobananaApiKey: undefined
+            provider: ImageProvider.COMFYUI,
+            isTextMode: isTextMode
           }),
         });
       }
@@ -498,8 +608,16 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       // 构建生成的图片信息（添加时间戳防止缓存）
       const timestamp = Date.now();
       const cacheBust = `?t=${timestamp}`;
-      // 使用统一的slideId变量
-      const imageUrl = `${N8N_CONFIG.BASE_URL}/webhook/servefiles/api/slides-data/${imageJobId}/generated_images/slide_${slideId}.png${cacheBust}`;
+      // 使用后端返回的特定文件名 URL，如果缺失则不显示
+      const serverImageUrl = result.data?.imageUrl
+        ? (result.data.imageUrl.startsWith('http') ? result.data.imageUrl : `${N8N_CONFIG.BASE_URL}${result.data.imageUrl}`)
+        : '';
+
+      if (!serverImageUrl) {
+        throw new Error('未获取到生成的图片地址');
+      }
+
+      const imageUrl = `${serverImageUrl}${cacheBust}`;
 
       const generatedImage: GeneratedImage = {
         id: `${provider}_${timestamp}`,
@@ -508,22 +626,46 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
         thumbnailUrl: imageUrl,
         prompt: currentSlideData.userPrompt,
         negativePrompt: currentSlideData.negativePrompt,
-        generationTime: result.generationTime || 5.0,
+        generationTime: result.data?.generationTime || result.generationTime || 5.0,
         provider: provider,
-        width: provider === 'comfyui' ? localImageSettings.comfyuiSettings.width : 1024,
-        height: provider === 'comfyui' ? localImageSettings.comfyuiSettings.height : 1024,
-        fileSize: result.fileSize || 512000,
+        width: provider === ImageProvider.COMFYUI ? localImageSettings.comfyuiSettings.width : 1024,
+        height: provider === ImageProvider.COMFYUI ? localImageSettings.comfyuiSettings.height : 1024,
+        fileSize: result.data?.fileSize || result.fileSize || 512000,
         createdAt: new Date().toISOString()
       };
 
       // Update slide data with generated image
       const finalSlideData = [...slideDataList];
+      const newVersions = [...(currentSlideData.generatedImageVersions || [])];
+
+      // 添加新生成的版本到版本历史
+      newVersions.unshift({
+        url: imageUrl,
+        filename: result.data?.fileName || `slide_${slideId}.png`,
+        metadata: {
+          prompt: generatedImage.prompt,
+          negativePrompt: generatedImage.negativePrompt,
+          provider: generatedImage.provider,
+          width: generatedImage.width,
+          height: generatedImage.height,
+          generationTime: generatedImage.generationTime,
+          createdAt: generatedImage.createdAt
+        }
+      });
+
       finalSlideData[currentSlide] = {
         ...currentSlideData,
         generatedImage: generatedImage,
+        generatedImageVersions: newVersions as any,
         generationStatus: 'completed' as const
       };
       setSlideDataList(finalSlideData);
+
+      // 生成成功后，重置当前幻灯片的版本索引为最新（0）
+      setSlideVersionIndexes(prev => ({
+        ...prev,
+        [currentSlide]: 0
+      }));
 
       // 生成成功后，自动切换到显示AI图片
       setSlideImageDisplayStates(prev => ({
@@ -613,11 +755,15 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       const currentSlideData = slideDataList[currentSlide];
       if (!currentSlideData) return;
 
-      setProcessingDetail('正在生成智能提示词...');
-      addLog('正在使用AI生成智能提示词...');
+      const description = isTextMode && selectedText ?
+        `用户划选的原文片段: ${selectedText}` :
+        (currentSlideData.description || documentContent || '');
+
+      setProcessingDetail(isTextMode && selectedText ? '正在基于划选文字生成提示词...' : '正在生成智能提示词...');
+      addLog(isTextMode && selectedText ? '正在基于划选文字生成智能提示词...' : '正在使用AI生成智能提示词...');
 
       const enhancedPrompt = await generateSmartPrompt(
-        currentSlideData.description || '',
+        description,
         imageGenParams.imageStyle,
         imageGenParams.contentType,
         currentSlideData.slideTitle
@@ -750,8 +896,8 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
 </slide_content>
 
 <business_context>
-<industry>云计算、企业级软件、数字化转型</industry>
-<purpose>产品定义文档、技术白皮书配图</purpose>
+<industry>请根据文档内容自动识别所属行业领域</industry>
+<purpose>专业文档配图</purpose>
 <style>${imageStyle} (保持专业、干净、高信噪比)</style>
 </business_context>
 
@@ -777,7 +923,7 @@ ${selectedInstruction}
 </composition_principles>
 
 <visual_translation_strategy>
-- （仅针对正文页）不能只画通用的方块，必须根据内容填充有意义的IT实体（如盾牌、数据库、芯片等）
+- （仅针对正文页）不能只画通用的方块，必须根据文档实际内容提取关键概念，并转化为与之匹配的具象化视觉元素
 - （如果是封面页）保持背景的简洁与留白
 </visual_translation_strategy>
 
@@ -806,15 +952,15 @@ ${selectedInstruction}
 </design_guidelines>
 
 <output_format>
-请严格按照以下5个模块输出（模块间换行，内部逗号分隔）：
+以下5个模块供参考，请根据内容选择适合的模块输出（不必全部填写，只输出有意义的部分）：
 
 1. **[场景构图]**：(如果是封面，描述大气背景和留白；如果是正文，描述视角和布局)
-2. **[核心技术组件]**：(如果是封面，填"品牌主视觉背景"；如果是正文，填具体的IT实体细节)
-3. **[逻辑交互细节]**：(如果是封面，填"无"；如果是正文，描述连接线、箭头流向)
-4. **[文本与标签]**：(指定中文标签内容，或声明留白位置)
-5. **[视觉风格后缀]**：(${imageStyle}相关词汇, 材质描述: Glassmorphism, Matte Metal, Tech Blue light)
+2. **[核心元素]**：描述画面中的主体视觉元素
+3. **[逻辑交互]**：如有需要，描述元素之间的关系和连接
+4. **[文本标签]**：如有需要，指定中文标签内容
+5. **[视觉风格]**：${imageStyle}相关的风格描述
 
-请直接输出上述5个模块内容。
+请直接输出画面描述。
 </output_format>`;
 
     try {
@@ -896,7 +1042,11 @@ ${selectedInstruction}
   // Download single image
   const downloadImage = async (image: GeneratedImage) => {
     try {
-      const response = await fetch(image.url);
+      const absoluteUrl = image.url.startsWith('http') || image.url.startsWith('blob:')
+        ? image.url
+        : `${N8N_CONFIG.BASE_URL}${image.url}`;
+
+      const response = await fetch(absoluteUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -936,7 +1086,11 @@ ${selectedInstruction}
 
       for (let i = 0; i < generatedImages.length; i++) {
         const image = generatedImages[i];
-        const response = await fetch(image.url);
+        const absoluteUrl = image.url.startsWith('http') || image.url.startsWith('blob:')
+          ? image.url
+          : `${N8N_CONFIG.BASE_URL}${image.url}`;
+
+        const response = await fetch(absoluteUrl);
         const blob = await response.blob();
         zip.file(`slide_${image.slideId}_generated.png`, blob);
       }
@@ -991,59 +1145,47 @@ ${selectedInstruction}
     setSlideDataList(updatedSlideData);
   };
 
+  // Handle image version change
+  const handleVersionChange = (slideIndex: number, versionIndex: number) => {
+    setSlideVersionIndexes(prev => ({
+      ...prev,
+      [slideIndex]: versionIndex
+    }));
+
+    // 同步更新当前显示的图片信息（供全屏和下载使用）
+    const slide = slideDataList[slideIndex];
+    if (slide.generatedImageVersions && slide.generatedImageVersions[versionIndex]) {
+      const version = slide.generatedImageVersions[versionIndex];
+      const updatedSlideData = [...slideDataList];
+      const absoluteUrl = version.url.startsWith('http') ? version.url : `${N8N_CONFIG.BASE_URL}${version.url}`;
+
+      updatedSlideData[slideIndex] = {
+        ...slide,
+        generatedImage: {
+          id: `version_${versionIndex}_${Date.now()}`,
+          slideId: slide.id,
+          url: absoluteUrl,
+          thumbnailUrl: absoluteUrl,
+          prompt: version.metadata.prompt,
+          negativePrompt: version.metadata.negativePrompt,
+          generationTime: version.metadata.generationTime,
+          provider: version.metadata.provider as ImageProvider,
+          width: version.metadata.width,
+          height: version.metadata.height,
+          fileSize: 0,
+          createdAt: version.metadata.createdAt
+        }
+      };
+      setSlideDataList(updatedSlideData);
+    }
+  };
+
   // Initialize data on component mount
   useEffect(() => {
     fetchSlideData();
   }, [imageJobId]);
 
-  // Auto-generate smart prompts when data is loaded
-  useEffect(() => {
-    if (slideDataList.length > 0 && !isLoading) {
-      // Generate smart prompts for slides that don't have them yet
-      const generateInitialPrompts = async () => {
-        for (let i = 0; i < slideDataList.length; i++) {
-          const slideData = slideDataList[i];
-          // Only generate if userPrompt is empty or a default template
-          if (!slideData.userPrompt || slideData.userPrompt.includes('未命名幻灯片') || slideData.userPrompt.length < 20) {
-            try {
-              setProcessingDetail(`正在为第 ${i + 1} 页生成智能提示词...`);
-              const enhancedPrompt = await generateSmartPrompt(
-                slideData.description || '',
-                imageGenParams.imageStyle,
-                imageGenParams.contentType,
-                slideData.slideTitle
-              );
 
-              const updatedSlideData = [...slideDataList];
-              updatedSlideData[i] = {
-                ...slideData,
-                userPrompt: enhancedPrompt
-              };
-              setSlideDataList(updatedSlideData);
-
-              // Small delay to avoid overwhelming the AI
-              await new Promise(resolve => setTimeout(resolve, 500));
-            } catch (error) {
-              console.error(`为第 ${i + 1} 页生成智能提示词失败:`, error);
-            }
-          }
-        }
-        setProcessingDetail('智能提示词生成完成');
-      };
-
-      generateInitialPrompts();
-    }
-  }, [slideDataList.length, isLoading]);
-
-  const [processingDetail, setProcessingDetail] = useState<string>('');
-
-  // Auto-analyze current slide when it changes and has no description
-  useEffect(() => {
-    const currentSlideData = slideDataList[currentSlide];
-    if (currentSlideData && !currentSlideData.description && !isLoading) {
-      analyzeSlideContent(currentSlide);
-    }
-  }, [currentSlide, slideDataList.length, isLoading]);
 
   // Cycle through prompt texts during image generation
   useEffect(() => {
@@ -1098,6 +1240,8 @@ ${selectedInstruction}
   }, [showGlobalLoading, currentProcessingSlide, slideDataList]);
 
   // Check if AI-generated images exist on server when slide data loads or changes
+  // Removed: Redundant and harmful useEffect that was overwriting correctly fetched generatedImage data
+  /*
   useEffect(() => {
     if (slideDataList.length === 0 || isLoading) return;
 
@@ -1164,6 +1308,7 @@ ${selectedInstruction}
       );
     }
   }, [currentSlide, slideDataList.length, imageJobId, isLoading]);
+  */
 
   if (isLoading) {
     return (
@@ -1209,14 +1354,32 @@ ${selectedInstruction}
       {/*<h2 className="text-xl font-bold mb-4">图片生成</h2>*/}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
-        {/* Left: Slide Preview */}
-        <div className="space-y-4">
+        {/* Left: Unified Preview Arena */}
+        <div className={`flex flex-col ${isTextMode ? 'h-[80vh] min-h-[600px]' : ''}`}>
           <SlidePreview
             currentSlide={currentSlide}
             totalSlides={slideDataList.length}
             slideNumber={currentSlide + 1}
-            imageUrl={slideImageDisplayStates[currentSlide] ? currentSlideData?.generatedImage?.url : currentSlideData?.imageUrl}
-            originalImageUrl={currentSlideData?.imageUrl}
+            isTextMode={isTextMode}
+            headerTitle={isTextMode ? '划选生图模式' : undefined}
+            documentContent={documentContent}
+            highlightText={selectedText}
+            onTextSelect={(text) => setSelectedText(text)}
+            imageUrl={(() => {
+              const baseImgUrl = slideImageDisplayStates[currentSlide]
+                ? (currentSlideData?.generatedImageVersions && currentSlideData.generatedImageVersions.length > 1
+                  ? currentSlideData.generatedImageVersions[slideVersionIndexes[currentSlide] || 0].url
+                  : (currentSlideData?.generatedImage?.url || ''))
+                : (isTextMode
+                  ? (currentSlideData?.generatedImage?.url || '')
+                  : currentSlideData?.imageUrl);
+
+              if (!baseImgUrl) return '';
+              return baseImgUrl.startsWith('http') || baseImgUrl.startsWith('blob:')
+                ? baseImgUrl
+                : `${N8N_CONFIG.BASE_URL}${baseImgUrl}`;
+            })()}
+            originalImageUrl={isTextMode ? undefined : currentSlideData?.imageUrl}
             title={currentSlideData?.slideTitle}
             onPreviousSlide={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
             onNextSlide={() => setCurrentSlide(Math.min(slideDataList.length - 1, currentSlide + 1))}
@@ -1227,17 +1390,31 @@ ${selectedInstruction}
             onImageFullscreen={() => showImageFullscreenView(currentSlideData!.generatedImage!)}
             onImageDownload={() => downloadImage(currentSlideData!.generatedImage!)}
             hasGeneratedImage={!!currentSlideData?.generatedImage}
-            generatedImageInfo={currentSlideData?.generatedImage ? {
-              prompt: currentSlideData.generatedImage.prompt,
-              generationTime: currentSlideData.generatedImage.generationTime,
-              width: currentSlideData.generatedImage.width,
-              height: currentSlideData.generatedImage.height,
-              provider: currentSlideData.generatedImage.provider
-            } : undefined}
+            generatedImageInfo={(() => {
+              const versionIndex = slideVersionIndexes[currentSlide] || 0;
+              const version = currentSlideData?.generatedImageVersions?.[versionIndex];
+              const displayImage = version ? {
+                prompt: version.metadata.prompt,
+                generationTime: version.metadata.generationTime,
+                width: version.metadata.width,
+                height: version.metadata.height,
+                provider: version.metadata.provider
+              } : (currentSlideData?.generatedImage ? {
+                prompt: currentSlideData.generatedImage.prompt,
+                generationTime: currentSlideData.generatedImage.generationTime,
+                width: currentSlideData.generatedImage.width,
+                height: currentSlideData.generatedImage.height,
+                provider: currentSlideData.generatedImage.provider
+              } : undefined);
+              return displayImage;
+            })()}
             showGeneratedImage={slideImageDisplayStates[currentSlide] ?? false}
             onToggleImage={() => toggleSlideImageDisplay(currentSlide)}
+            imageVersions={currentSlideData?.generatedImageVersions}
+            currentVersionIndex={slideVersionIndexes[currentSlide] || 0}
+            onVersionChange={(vIdx) => handleVersionChange(currentSlide, vIdx)}
+            className="flex-1"
           />
-
         </div>
 
         {/* Right: Control Panel */}
@@ -1288,7 +1465,7 @@ ${selectedInstruction}
               value={currentSlideData?.userPrompt || ''}
               onChange={(e) => updateSlideData('userPrompt', e.target.value)}
               className="w-full h-96 bg-gray-900/50 border border-gray-700 rounded-lg p-3 text-sm text-gray-200 resize-none focus:border-orange-500 focus:outline-none"
-              placeholder="AI正在生成智能提示词..."
+              placeholder="请点击下方按钮生成提示词，或直接输入您的描述..."
             />
             <div className="mt-3 flex justify-end">
               <button
@@ -1440,7 +1617,7 @@ ${selectedInstruction}
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-card border border-gray-700 rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
             <div className={`text-center mb-4 ${exportData.type === 'success' ? 'text-green-400' :
-                exportData.type === 'error' ? 'text-red-400' : 'text-blue-400'
+              exportData.type === 'error' ? 'text-red-400' : 'text-blue-400'
               }`}>
               <div className="text-2xl mb-2">
                 {exportData.type === 'success' ? '✓' :
@@ -1471,7 +1648,9 @@ ${selectedInstruction}
             ✕
           </button>
           <img
-            src={fullscreenImage.url}
+            src={fullscreenImage.url.startsWith('http') || fullscreenImage.url.startsWith('blob:')
+              ? fullscreenImage.url
+              : `${N8N_CONFIG.BASE_URL}${fullscreenImage.url}`}
             alt="全屏图片预览"
             className="max-w-full max-h-full object-contain rounded-lg"
           />

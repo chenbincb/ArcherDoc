@@ -13,7 +13,7 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave, initialTab = 'ai' }) => {
   // Tab state - Must be at the top before other hooks
   const [activeTab, setActiveTab] = useState<'ai' | 'translation' | 'video' | 'image'>('ai');
-  
+
   // Main settings state
   const [localSettings, setLocalSettings] = React.useState<AppSettings>(settings);
 
@@ -23,39 +23,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
 
   React.useEffect(() => {
     if (isOpen) {
-        setLocalSettings(settings);
-        setActiveTab(initialTab);
+      setLocalSettings(settings);
+      setActiveTab(initialTab);
 
-        // Handle subTab navigation
-        const subTab = localStorage.getItem('settings-subtab');
-        if (subTab) {
-          setTimeout(() => {
-            switch (subTab) {
-              case 'qwen-tts':
-                // Navigate to video tab and set Qwen TTS as active provider
-                setLocalSettings(prev => ({
-                  ...prev,
-                  videoSettings: {
-                    ...prev.videoSettings,
-                    speechModelType: SpeechModelType.QWEN_TTS
-                  }
-                }));
-                break;
-              case 'nanobanana':
-                // Navigate to image tab and set Nano Banana as active provider
-                setLocalSettings(prev => ({
-                  ...prev,
-                  imageSettings: {
-                    ...prev.imageSettings,
-                    defaultProvider: ImageProvider.NANO_BANANA
-                  }
-                }));
-                break;
-            }
-            // Clear the subTab after handling
-            localStorage.removeItem('settings-subtab');
-          }, 100);
-        }
+      // Handle subTab navigation
+      const subTab = localStorage.getItem('settings-subtab');
+      if (subTab) {
+        setTimeout(() => {
+          switch (subTab) {
+            case 'qwen-tts':
+              // Navigate to video tab and set Qwen TTS as active provider
+              setLocalSettings(prev => ({
+                ...prev,
+                videoSettings: {
+                  ...prev.videoSettings,
+                  speechModelType: SpeechModelType.QWEN_TTS
+                }
+              }));
+              break;
+            case 'nanobanana':
+              // Navigate to image tab and set Nano Banana as active provider
+              setLocalSettings(prev => ({
+                ...prev,
+                imageSettings: {
+                  ...prev.imageSettings,
+                  defaultProvider: ImageProvider.NANO_BANANA
+                }
+              }));
+              break;
+          }
+          // Clear the subTab after handling
+          localStorage.removeItem('settings-subtab');
+        }, 100);
+      }
     }
   }, [settings, isOpen, initialTab]);
 
@@ -70,14 +70,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
 
   const updateActiveConfig = (updates: Partial<ProviderConfig>) => {
     setLocalSettings(prev => ({
-        ...prev,
-        configs: {
-            ...prev.configs,
-            [prev.activeProvider]: {
-                ...prev.configs[prev.activeProvider],
-                ...updates
-            }
+      ...prev,
+      configs: {
+        ...prev.configs,
+        [prev.activeProvider]: {
+          ...prev.configs[prev.activeProvider],
+          ...updates
         }
+      }
     }));
   };
 
@@ -85,8 +85,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
   const addGlossaryItem = () => {
     if (!newTerm.trim() || !newTranslation.trim()) return;
     setLocalSettings(prev => ({
-        ...prev,
-        glossary: [...(prev.glossary || []), { term: newTerm.trim(), translation: newTranslation.trim() }]
+      ...prev,
+      glossary: [...(prev.glossary || []), { term: newTerm.trim(), translation: newTranslation.trim() }]
     }));
     setNewTerm('');
     setNewTranslation('');
@@ -94,26 +94,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
 
   const removeGlossaryItem = (index: number) => {
     setLocalSettings(prev => ({
-        ...prev,
-        glossary: prev.glossary.filter((_, i) => i !== index)
+      ...prev,
+      glossary: prev.glossary.filter((_, i) => i !== index)
     }));
   };
 
   const getPlaceholderModel = () => {
-      switch(localSettings.activeProvider) {
-          case AIProvider.GEMINI: return "gemini-2.5-flash";
-          case AIProvider.OLLAMA: return "llama3";
-          case AIProvider.VLLM: return "facebook/opt-125m";
-          default: return "gpt-3.5-turbo";
-      }
+    switch (localSettings.activeProvider) {
+      case AIProvider.GEMINI: return "gemini-2.5-flash";
+      case AIProvider.OLLAMA: return "llama3";
+      case AIProvider.VLLM: return "facebook/opt-125m";
+      default: return "gpt-3.5-turbo";
+    }
   };
 
   const getPlaceholderUrl = () => {
-       switch(localSettings.activeProvider) {
-          case AIProvider.OLLAMA: return "http://localhost:11434/v1";
-          case AIProvider.VLLM: return "http://localhost:8000/v1";
-          default: return "https://openrouter.ai/api/v1";
-      }
+    switch (localSettings.activeProvider) {
+      case AIProvider.OLLAMA: return "http://localhost:11434/v1";
+      case AIProvider.VLLM: return "http://localhost:8000/v1";
+      default: return "https://openrouter.ai/api/v1";
+    }
   };
 
   return (
@@ -121,50 +121,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
       <div className="bg-card border border-gray-700 rounded-xl shadow-2xl max-w-2xl w-full animate-in fade-in zoom-in duration-200 my-8 h-[688px] flex flex-col">
         <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
           <h2 className="text-xl font-bold text-white mb-4 flex items-center justify-between sticky top-0 bg-card z-10 py-2 border-b border-gray-700">
-              <span>配置</span>
-              <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
+            <span>配置</span>
+            <button onClick={onClose} className="text-gray-400 hover:text-white">&times;</button>
           </h2>
-          
+
           {/* Tab Navigation */}
           <div className="mb-4 border-b border-gray-700">
             <div className="flex space-x-1">
               <button
                 onClick={() => setActiveTab('ai')}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                  activeTab === 'ai'
-                    ? 'bg-primary text-white border-b-2 border-primary'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300 border-b-2 border-transparent'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'ai'
+                  ? 'bg-primary text-white border-b-2 border-primary'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300 border-b-2 border-transparent'
+                  }`}
               >
                 🤖 AI 设置
               </button>
               <button
                 onClick={() => setActiveTab('translation')}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                  activeTab === 'translation'
-                    ? 'bg-primary text-white border-b-2 border-primary'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300 border-b-2 border-transparent'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'translation'
+                  ? 'bg-primary text-white border-b-2 border-primary'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300 border-b-2 border-transparent'
+                  }`}
               >
                 📖 翻译设置
               </button>
               <button
                 onClick={() => setActiveTab('video')}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                  activeTab === 'video'
-                    ? 'bg-primary text-white border-b-2 border-primary'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300 border-b-2 border-transparent'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'video'
+                  ? 'bg-primary text-white border-b-2 border-primary'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300 border-b-2 border-transparent'
+                  }`}
               >
                 🎙️ 音频生成设置
               </button>
               <button
                 onClick={() => setActiveTab('image')}
-                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${
-                  activeTab === 'image'
-                    ? 'bg-primary text-white border-b-2 border-primary'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300 border-b-2 border-transparent'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === 'image'
+                  ? 'bg-primary text-white border-b-2 border-primary'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-300 border-b-2 border-transparent'
+                  }`}
               >
                 🎨 图片生成设置
               </button>
@@ -184,11 +180,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                         <button
                           key={opt.value}
                           onClick={() => setLocalSettings({ ...localSettings, activeProvider: opt.value })}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
-                            localSettings.activeProvider === opt.value
-                              ? 'bg-primary text-white'
-                              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                          }`}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${localSettings.activeProvider === opt.value
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                            }`}
                         >
                           {opt.label}
                         </button>
@@ -269,7 +264,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                     <h4 className="text-sm font-bold text-gray-300">专有名词术语表 (Glossary)</h4>
                     <p className="text-xs text-gray-500">强制 AI 将特定词汇翻译为您指定的内容。</p>
                   </div>
-                  
+
                   <div className="bg-gray-900/50 rounded border border-gray-700 mb-3 p-2 overflow-y-auto max-h-[350px] min-h-[200px]">
                     {(localSettings.glossary && localSettings.glossary.length > 0) ? (
                       <div className="space-y-2">
@@ -291,7 +286,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
 
                   <div className="grid grid-cols-[1fr,1fr,auto] gap-2 items-end">
                     <div>
-                      <input 
+                      <input
                         className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-xs text-white"
                         placeholder="原文 (如: AI)"
                         value={newTerm}
@@ -299,7 +294,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                       />
                     </div>
                     <div>
-                      <input 
+                      <input
                         className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-xs text-white"
                         placeholder="译文 (如: 人工智能)"
                         value={newTranslation}
@@ -307,7 +302,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                         onKeyDown={e => e.key === 'Enter' && addGlossaryItem()}
                       />
                     </div>
-                    <button 
+                    <button
                       onClick={addGlossaryItem}
                       disabled={!newTerm.trim() || !newTranslation.trim()}
                       className="bg-primary hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white p-2 rounded"
@@ -334,11 +329,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             speechModelType: SpeechModelType.MINIMAX
                           }
                         })}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
-                          localSettings.videoSettings.speechModelType === SpeechModelType.MINIMAX
-                            ? 'bg-primary text-white'
-                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                        }`}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${localSettings.videoSettings.speechModelType === SpeechModelType.MINIMAX
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                          }`}
                       >
                         MiniMax
                       </button>
@@ -350,11 +344,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             speechModelType: SpeechModelType.COQUI_TTS
                           }
                         })}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
-                          localSettings.videoSettings.speechModelType === SpeechModelType.COQUI_TTS
-                            ? 'bg-primary text-white'
-                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                        }`}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${localSettings.videoSettings.speechModelType === SpeechModelType.COQUI_TTS
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                          }`}
                       >
                         Coqui TTS
                       </button>
@@ -366,11 +359,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             speechModelType: SpeechModelType.QWEN_TTS
                           }
                         })}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
-                          localSettings.videoSettings.speechModelType === SpeechModelType.QWEN_TTS
-                            ? 'bg-primary text-white'
-                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                        }`}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${localSettings.videoSettings.speechModelType === SpeechModelType.QWEN_TTS
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                          }`}
                       >
                         Qwen TTS
                       </button>
@@ -443,12 +435,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             </select>
                           </div>
 
-                          </>
+                        </>
                       )}
 
                       {/* Coqui TTS Settings */}
                       {localSettings.videoSettings.speechModelType === SpeechModelType.COQUI_TTS && (
                         <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">Coqui TTS 服务器地址</label>
+                            <input
+                              type="text"
+                              className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary"
+                              value={localSettings.videoSettings.coquiSettings.url}
+                              onChange={(e) => setLocalSettings({
+                                ...localSettings,
+                                videoSettings: {
+                                  ...localSettings.videoSettings,
+                                  coquiSettings: {
+                                    ...localSettings.videoSettings.coquiSettings,
+                                    url: e.target.value
+                                  }
+                                }
+                              })}
+                              placeholder="http://178.109.129.11:8001/generate"
+                            />
+                          </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-300 mb-1">语音音色（参考音频）</label>
                             <select
@@ -581,11 +592,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             defaultProvider: ImageProvider.COMFYUI
                           }
                         })}
-                        className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                          localSettings.imageSettings.defaultProvider === ImageProvider.COMFYUI
-                            ? 'bg-primary text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
+                        className={`px-3 py-2 text-sm rounded-lg transition-colors ${localSettings.imageSettings.defaultProvider === ImageProvider.COMFYUI
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
                       >
                         ComfyUI (本地)
                       </button>
@@ -597,11 +607,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             defaultProvider: ImageProvider.NANO_BANANA
                           }
                         })}
-                        className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                          localSettings.imageSettings.defaultProvider === ImageProvider.NANO_BANANA
-                            ? 'bg-primary text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
+                        className={`px-3 py-2 text-sm rounded-lg transition-colors ${localSettings.imageSettings.defaultProvider === ImageProvider.NANO_BANANA
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
                       >
                         Nano Banana (云端)
                       </button>
@@ -965,7 +974,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         </div>
         <div className="bg-gray-800/50 p-4 flex justify-end gap-3 border-t border-gray-700">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">取消</button>
-          <button 
+          <button
             onClick={handleSave}
             className="px-6 py-2 bg-primary hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
           >

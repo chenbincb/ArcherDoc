@@ -8,6 +8,9 @@ import VideoReviewPage from './pages/VideoReviewPage';
 import { AppSettings, AIProvider, TranslationStats, VideoResult, VideoGenerationStats, ArticleResult, ArticleGenerationStats, ImageGenerationStats, ImageResult } from './types';
 import { DEFAULT_SETTINGS, N8N_CONFIG } from './constants';
 import { processPPTX, replaceGlobalFonts } from './services/pptxService';
+import { processDOCX } from './services/docxService';
+import { processTextFile } from './services/textService';
+import { translateText } from './services/aiService';
 import { safeNavigate, safeGoHome } from './utils/navigationHelper';
 
 /**
@@ -268,37 +271,59 @@ const App: React.FC = () => {
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const selectedFile = event.target.files[0];
-      if (selectedFile.name.endsWith('.pptx')) {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      const ext = selectedFile.name.toLowerCase().split('.').pop();
+      if (['pptx', 'docx', 'pdf', 'txt', 'md', 'jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
         setFile(selectedFile);
         setError(null);
-        setResultBlob(null);
-        setStats(null);
-        setLogs([]);
-        setProgress(0);
-        setStatusMessage('');
-        setProcessingDetail('');
+        setResultBlob(null); // Clear previous translation result
+        setStats(null); // Clear previous translation stats
+        setLogs([]); // Clear logs
+        setProgress(0); // Reset progress
+        setStatusMessage(''); // Reset status message
+        setProcessingDetail(''); // Reset processing detail
+        setVideoStats(null); // Clear video stats
+        setSlideImages([]); // Clear slide images
+        setSlideScripts([]); // Clear slide scripts
+        setAudioBlobs([]); // Clear audio blobs
+        setVideoResult(null); // Clear video result
+        setArticleStats(null); // Clear article stats
+        setArticleResult(null); // Clear article result
+        setImageStats(null); // Clear image stats
+        setImageResult(null); // Clear image result
       } else {
-        setError("请上传有效的 .pptx 文件。");
+        setError("不支持的文件格式。请上传 PPTX, DOCX, PDF, TXT, MD, 或图片(JPG/PNG/GIF)。");
       }
     }
   };
 
   const handleDrop = useCallback((event: React.DragEvent) => {
     event.preventDefault();
-    const selectedFile = event.dataTransfer.files[0];
-    if (selectedFile && selectedFile.name.endsWith('.pptx')) {
-      setFile(selectedFile);
-      setError(null);
-      setResultBlob(null);
-      setStats(null);
-      setLogs([]);
-      setProgress(0);
-      setStatusMessage('');
-      setProcessingDetail('');
-    } else {
-      setError("请上传有效的 .pptx 文件。");
+    const droppedFile = event.dataTransfer.files[0];
+    if (droppedFile) {
+      const ext = droppedFile.name.toLowerCase().split('.').pop();
+      if (['pptx', 'docx', 'pdf', 'txt', 'md', 'jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
+        setFile(droppedFile);
+        setError(null);
+        setResultBlob(null); // Clear previous translation result
+        setStats(null); // Clear previous translation stats
+        setLogs([]); // Clear logs
+        setProgress(0); // Reset progress
+        setStatusMessage(''); // Reset status message
+        setProcessingDetail(''); // Reset processing detail
+        setVideoStats(null); // Clear video stats
+        setSlideImages([]); // Clear slide images
+        setSlideScripts([]); // Clear slide scripts
+        setAudioBlobs([]); // Clear audio blobs
+        setVideoResult(null); // Clear video result
+        setArticleStats(null); // Clear article stats
+        setArticleResult(null); // Clear article result
+        setImageStats(null); // Clear image stats
+        setImageResult(null); // Clear image result
+      } else {
+        setError("不支持的文件格式。请上传 PPTX, DOCX, PDF, TXT, MD, 或图片(JPG/PNG/GIF)。");
+      }
     }
   }, []);
 
@@ -333,7 +358,7 @@ const App: React.FC = () => {
     });
 
     try {
-      const { blob, stats: finalStats } = await processPPTX(file, settings, (current, total, msg, detail, currentStats) => {
+      const progressHandler = (current: number, total: number, msg: string, detail: string, currentStats?: TranslationStats) => {
         const percentage = Math.min(100, (current / Math.max(total, 1)) * 100);
         setProgress(percentage);
 
@@ -342,28 +367,208 @@ const App: React.FC = () => {
           setStats(currentStats);
         }
 
-        // Handle special events for magic text, otherwise standard logging
+        // Handle special events for magic text
         if (msg === 'TRANSLATING_START' || msg === 'TRANSLATING_END') {
-          setStatusMessage(msg); // Pass event type to magic component
-          if (detail) setProcessingDetail(detail); // Pass content
+          setStatusMessage(msg);
+          if (detail) setProcessingDetail(detail);
 
-          // Only log completion to keep log clean
           if (msg === 'TRANSLATING_END') {
             const snippet = detail && detail.length > 40 ? detail.substring(0, 40) + '...' : detail;
             addLog(`✓ ${snippet}`);
           }
         } else {
-          setStatusMessage(msg); // Normal status like "Processing Slide 1"
+          setStatusMessage(msg);
           if (detail) addLog(detail);
         }
-      });
+      };
+
+      let blob: Blob;
+      let finalStats: { original: number; translated: number };
+
+      const lowerName = file.name.toLowerCase();
+      if (lowerName.endsWith('.docx')) {
+        const result = await processDOCX(file, settings, progressHandler);
+        blob = result.blob;
+        finalStats = result.stats;
+        setDownloadName(`${file.name.replace(/\.docx$/i, '')}_${settings.targetLanguage}.docx`);
+      } else if (lowerName.endsWith('.pdf') || lowerName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        // PDF & Image SPECIAL FLOW: Backend Extraction -> Frontend Translation
+        setStatusMessage("UPLOAD_START");
+        addLog("正在上传文件道服务器进行内容提取...");
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('aiProvider', settings.activeProvider);
+        formData.append('aiModel', settings.configs[settings.activeProvider].model);
+        formData.append('aiApiKey', settings.configs[settings.activeProvider].apiKey);
+        formData.append('aiBaseUrl', settings.configs[settings.activeProvider].baseUrl || '');
+        formData.append('processingType', 'translation'); // Use translation mode to only extract
+
+        const uploadRes = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!uploadRes.ok) throw new Error("文件上传失败");
+        const { jobId } = await uploadRes.json();
+
+        // Wait for extraction (simplified polling)
+        addLog("内容提取中，这可能需要几十秒...");
+        let extractedData = null;
+        for (let i = 0; i < 60; i++) { // Max 5 mins
+          await new Promise(r => setTimeout(r, 5000));
+          const statusRes = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-doc-content?jobId=${jobId}`);
+          if (statusRes.ok) {
+            const res = await statusRes.json();
+            extractedData = res.data;
+            break;
+          }
+          setProgress(5 + (i * 1.5)); // Fake progress during extraction
+        }
+
+        if (!extractedData) throw new Error("内容提取超时或失败");
+
+        // Now translate items on frontend (Magic Interaction)
+        addLog(`成功提取内容，开始翻译...`);
+        let pdfOriginalChars = 0;
+        let pdfTranslatedChars = 0;
+
+        // 我们需要把翻译后的结果存回 items 结构中
+        for (const slide of extractedData.slides) {
+          // 如果 slide 没有 items (比如 ImageExtractor 返回的是纯 content), 我们需要构造一个 dummy item
+          if (!slide.items || slide.items.length === 0) {
+            slide.items = [{
+              type: 'text',
+              text: slide.content, // ImageExtractor puts markdown in content
+              fontSize: 12,
+              isHeader: false
+            }];
+          }
+
+          const items = slide.items || [];
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const progress = (pdfOriginalChars / 1000); // 粗略进度估算
+
+            if (item.type === 'table') {
+              // 翻译表格：遍历二维数组
+              const translatedRows = [];
+              for (let r = 0; r < item.rows.length; r++) {
+                const row = item.rows[r];
+                const translatedRow = [];
+                for (let c = 0; c < row.length; c++) {
+                  const cellText = row[c];
+                  if (!cellText || !cellText.trim()) {
+                    translatedRow.push(cellText);
+                    continue;
+                  }
+
+                  progressHandler(pdfOriginalChars, 10000, "TRANSLATING_START", cellText, {
+                    originalChars: pdfOriginalChars,
+                    translatedChars: pdfTranslatedChars,
+                    slidesProcessed: Math.min(99, Math.floor(progress)),
+                    totalSlides: 100
+                  });
+
+                  const translated = await translateText(cellText, settings);
+                  pdfOriginalChars += cellText.length;
+                  pdfTranslatedChars += translated.length;
+                  translatedRow.push(translated);
+
+                  progressHandler(pdfOriginalChars, 10000, "TRANSLATING_END", translated, {
+                    originalChars: pdfOriginalChars,
+                    translatedChars: pdfTranslatedChars,
+                    slidesProcessed: Math.min(99, Math.floor(progress)),
+                    totalSlides: 100
+                  });
+                }
+                translatedRows.push(translatedRow);
+              }
+              item.translatedRows = translatedRows; // 存储翻译后的表格
+            } else {
+              // 翻译普通文本
+              if (!item.text || !item.text.trim()) continue;
+
+              progressHandler(pdfOriginalChars, 10000, "TRANSLATING_START", item.text, {
+                originalChars: pdfOriginalChars,
+                translatedChars: pdfTranslatedChars,
+                slidesProcessed: Math.min(99, Math.floor(progress)),
+                totalSlides: 100
+              });
+
+              const translated = await translateText(item.text, settings);
+              pdfOriginalChars += item.text.length;
+              pdfTranslatedChars += translated.length;
+              item.translatedText = translated;
+
+              progressHandler(pdfOriginalChars, 10000, "TRANSLATING_END", translated, {
+                originalChars: pdfOriginalChars,
+                translatedChars: pdfTranslatedChars,
+                slidesProcessed: Math.min(99, Math.floor(progress)),
+                totalSlides: 100
+              });
+              await new Promise(r => setTimeout(r, 100));
+            }
+          }
+        }
+
+        finalStats = { original: pdfOriginalChars, translated: pdfTranslatedChars };
+
+        // Final step: Generate output file
+        if (lowerName.endsWith('.pdf')) {
+          addLog("正在生成带格式的 Word 文档...");
+          const generateRes = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-docx`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              slides: extractedData.slides,
+              filename: `${file.name.replace(/\.pdf$/i, '')}_${settings.targetLanguage}.docx`
+            })
+          });
+
+          if (!generateRes.ok) throw new Error("Word 文档生成失败");
+
+          blob = await generateRes.blob();
+          setDownloadName(`${file.name.replace(/\.pdf$/i, '')}_${settings.targetLanguage}.docx`);
+        } else {
+          // For Images, generate Markdown file
+          addLog("正在生成 Markdown 文档...");
+          let fullTranslatedText = "";
+          for (const slide of extractedData.slides) {
+            if (slide.items) {
+              for (const item of slide.items) {
+                if (item.translatedText) {
+                  fullTranslatedText += item.translatedText + "\n\n";
+                } else {
+                  fullTranslatedText += (item.text || "") + "\n\n";
+                }
+              }
+            }
+          }
+          blob = new Blob([fullTranslatedText], { type: 'text/markdown;charset=utf-8' });
+          setDownloadName(`${file.name.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '')}_${settings.targetLanguage}.md`);
+        }
+
+      } else if (lowerName.endsWith('.txt') || lowerName.endsWith('.md')) {
+        const result = await processTextFile(file, settings, progressHandler);
+        blob = result.blob;
+        finalStats = result.stats;
+        const ext = lowerName.endsWith('.md') ? '.md' : '.txt';
+        setDownloadName(`${file.name.replace(new RegExp(`\\${ext}$`, 'i'), '')}_${settings.targetLanguage}${ext}`);
+      } else {
+        const result = await processPPTX(file, settings, progressHandler);
+        blob = result.blob;
+        finalStats = result.stats;
+        setDownloadName(`${file.name.replace(/\.pptx$/i, '')}_${settings.targetLanguage}.pptx`);
+      }
 
       if (finalStats.original === 0) {
         throw new Error("未找到文本内容。请检查文件是否只包含图片。");
       }
 
       setResultBlob(blob);
-      setDownloadName(`${file.name.replace('.pptx', '')}_${settings.targetLanguage}.pptx`);
 
       // Final safety update
       setStats({
@@ -374,7 +579,7 @@ const App: React.FC = () => {
       });
       setStatusMessage("完成");
       setProcessingDetail("");
-      addLog("所有幻灯片处理完成。");
+      addLog("文档处理完成。");
     } catch (err: any) {
       setError(err.message || "发生意外错误。");
       setStatusMessage("失败");
@@ -522,16 +727,17 @@ const App: React.FC = () => {
             // Wait at least 1 second for the initial status to be displayed
             await delay(1000);
 
-            // Step 1: Create FormData with PPT file and API settings
+            // Step 1: Create FormData with file and API settings
             const step1Msg = "正在准备上传数据...";
             addLog(step1Msg);
             setStatusMessage(step1Msg);
-            setProcessingDetail("正在准备PPT文件和API配置...");
+            setProcessingDetail("正在准备文档文件和API配置...");
             setProgress(20);
             await delay(1000); // Wait at least 1 second for this step
 
             const formData = new FormData();
-            formData.append('pptFile', file!); // 使用pptFile匹配n8n工作流的binaryPropertyName设置
+            // 后端统一使用 pptFile 字段名接收
+            formData.append('pptFile', file!);
             formData.append('articleType', articleSettings.articleType);
             formData.append('articleStyle', articleSettings.articleStyle);
             formData.append('customPrompt', articleSettings.customPrompt);
@@ -541,8 +747,8 @@ const App: React.FC = () => {
             formData.append('aiBaseUrl', settings.configs[settings.activeProvider].baseUrl || '');
             formData.append('processingType', 'article'); // 添加processingType参数
 
-            // Step 2: Upload to n8n backend for article generation
-            const step2Msg = "正在上传PPT文件到服务器...";
+            // Step 2: Upload to backend for article generation
+            const step2Msg = "正在上传文件到服务器...";
             addLog(step2Msg);
             setStatusMessage(step2Msg);
             setProcessingDetail(`正在上传 ${file.name}...`);
@@ -563,7 +769,7 @@ const App: React.FC = () => {
             const step2CompleteMsg = `上传成功，文章生成中...`;
             addLog(step2CompleteMsg);
             setStatusMessage(step2CompleteMsg);
-            setProcessingDetail("PPT文件上传成功，正在生成文章...");
+            setProcessingDetail("文档上传成功，正在生成文章...");
             setProgress(50);
             await delay(1000); // Wait at least 1 second for this step
 
@@ -748,23 +954,125 @@ const App: React.FC = () => {
           {/* File Upload Area - Hide when processing or completed */}
           {!isProcessing && !resultBlob && (
             <div
-              className={`relative border-2 border-dashed rounded-2xl p-16 flex flex-col items-center justify-center text-center transition-all
-                    hover:border-primary/50 hover:bg-gray-800/50 cursor-pointer border-gray-700 bg-card
+              className={`relative group cursor-pointer overflow-hidden rounded-3xl border-2 transition-all duration-300 ease-out
+                    ${file
+                  ? 'border-primary/50 bg-primary/5'
+                  : 'border-dashed border-gray-700 hover:border-primary/50 hover:bg-gray-800/50 hover:shadow-[0_0_30px_-5px_rgba(59,130,246,0.15)]'
+                }
+                    bg-card backdrop-blur-sm h-[420px] flex flex-col items-center justify-center text-center
                     `}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add('border-primary', 'bg-primary/10', 'scale-[1.01]');
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove('border-primary', 'bg-primary/10', 'scale-[1.01]');
+              }}
+              onDrop={(e) => {
+                e.currentTarget.classList.remove('border-primary', 'bg-primary/10', 'scale-[1.01]');
+                handleDrop(e);
+              }}
             >
               {!file ? (
                 <>
-                  <div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mb-6 text-5xl shadow-inner">📂</div>
-                  <h3 className="text-2xl font-semibold text-white mb-4">拖放 PPTX 文件到这里</h3>
-                  <input type="file" accept=".pptx" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                  {/* Background decoration */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                  {/* Main Icon */}
+                  <div className="relative mb-12 group-hover:-translate-y-2 transition-transform duration-300">
+                    <div className="w-24 h-24 bg-gray-800/80 rounded-[2rem] flex items-center justify-center shadow-xl border border-white/5 group-hover:shadow-primary/20 group-hover:border-primary/20 transition-all duration-300 relative z-0">
+                      <span className="text-5xl group-hover:scale-110 transition-transform duration-300 filter drop-shadow-lg">✨</span>
+                    </div>
+                    {/* Floating elements */}
+                    <div className="absolute -right-2 -top-2 w-12 h-12 bg-blue-500/10 rounded-2xl border border-blue-500/20 flex items-center justify-center animate-bounce-slow z-20 backdrop-blur-sm" style={{ animationDelay: '0s' }}>
+                      <span className="text-xl">📄</span>
+                    </div>
+                    <div className="absolute -left-2 -bottom-2 w-10 h-10 bg-purple-500/10 rounded-xl border border-purple-500/20 flex items-center justify-center animate-bounce-slow z-20 backdrop-blur-sm" style={{ animationDelay: '1s' }}>
+                      <span className="text-lg">📊</span>
+                    </div>
+                  </div>
+
+                  <h3 className="text-2xl font-bold text-white mb-5 group-hover:text-purple-400 transition-colors">
+                    点击或拖拽文件到这里
+                  </h3>
+                  <p className="text-gray-400 mb-8 max-w-sm mx-auto leading-relaxed">
+                    {/* Format Icons Row */}
+                    <div className="flex gap-3 justify-center opacity-60 group-hover:opacity-100 transition-opacity duration-300 transform group-hover:scale-105">
+                      {[
+                        { ext: 'PPTX', color: 'text-orange-400', bg: 'bg-orange-400/10', border: 'border-orange-400/20' },
+                        { ext: 'DOCX', color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/20' },
+                        { ext: 'PDF', color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/20' },
+                        { ext: 'TXT', color: 'text-pink-400', bg: 'bg-pink-400/10', border: 'border-pink-400/20' },
+                        { ext: 'MD', color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/20' },
+                        { ext: 'IMG', color: 'text-purple-400', bg: 'bg-purple-400/10', border: 'border-purple-400/20' },
+                      ].map((fmt, i) => (
+                        <div key={i} className={`px-3 py-1.5 rounded-lg border ${fmt.border} ${fmt.bg} ${fmt.color} text-xs font-bold font-mono tracking-wider`}>
+                          {fmt.ext}
+                        </div>
+                      ))}
+                    </div>
+                  </p>
+
+                  <input
+                    type="file"
+                    accept=".pptx,.docx,.txt,.md,.pdf,.jpg,.jpeg,.png,.gif,.webp"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
+                  />
                 </>
               ) : (
-                <div className="space-y-4 w-full">
-                  <div className="w-24 h-24 mx-auto bg-primary/20 text-primary rounded-full flex items-center justify-center mb-4 text-4xl border border-primary/30">PPT</div>
-                  <div><h3 className="text-2xl font-semibold text-white truncate px-4">{file.name}</h3></div>
-                  <button onClick={(e) => { e.stopPropagation(); setFile(null); setError(null); setLogs([]); setSlideImages([]); setSlideScripts([]); setAudioBlobs([]); setVideoResult(null); setImageStats(null); setImageResult(null); }} className="text-sm text-red-400 hover:text-red-300 underline">移除文件</button>
+                <div className="relative w-full h-full flex flex-col items-center justify-center p-8 transition-all animate-in fade-in zoom-in-95 duration-300">
+                  {/* File Preview Card */}
+                  <div className="relative group/file">
+                    <div className={`w-32 h-32 mx-auto rounded-3xl flex items-center justify-center mb-6 text-6xl shadow-2xl border-2 relative z-10 
+                      ${file.name.toLowerCase().endsWith('.pptx') ? 'bg-orange-500/10 border-orange-500/30 text-orange-500' :
+                        file.name.toLowerCase().endsWith('.docx') ? 'bg-blue-500/10 border-blue-500/30 text-blue-500' :
+                          file.name.toLowerCase().endsWith('.pdf') ? 'bg-red-500/10 border-red-500/30 text-red-500' :
+                            file.name.toLowerCase().match(/\.(jpg|png|gif|webp)$/) ? 'bg-purple-500/10 border-purple-500/30 text-purple-500' :
+                              'bg-gray-500/10 border-gray-500/30 text-gray-400'
+                      }`}>
+                      {file.name.toLowerCase().endsWith('.pptx') ? '📊' :
+                        file.name.toLowerCase().endsWith('.docx') ? '📝' :
+                          file.name.toLowerCase().endsWith('.pdf') ? '📕' :
+                            file.name.toLowerCase().match(/\.(jpg|png|gif|webp)$/) ? '🖼️' : '📄'}
+                    </div>
+                    {/* Glow effect behind icon */}
+                    <div className={`absolute inset-0 rounded-3xl blur-2xl opacity-20 group-hover/file:opacity-40 transition-opacity duration-500
+                      ${file.name.toLowerCase().endsWith('.pptx') ? 'bg-orange-500' :
+                        file.name.toLowerCase().endsWith('.docx') ? 'bg-blue-500' :
+                          file.name.toLowerCase().endsWith('.pdf') ? 'bg-red-500' :
+                            'bg-gray-500'
+                      }`} />
+                  </div>
+
+                  <div className="space-y-2 z-20 max-w-lg">
+                    <h3 className="text-3xl font-bold text-white truncate drop-shadow-md px-4">{file.name}</h3>
+                    <p className="text-gray-400 font-mono text-sm uppercase tracking-widest opacity-70">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB • {file.name.split('.').pop()}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFile(null);
+                      setError(null);
+                      setLogs([]);
+                      setSlideImages([]);
+                      setSlideScripts([]);
+                      setAudioBlobs([]);
+                      setVideoResult(null);
+                      setImageStats(null);
+                      setImageResult(null);
+                    }}
+                    className="mt-8 px-6 py-2 rounded-full border border-red-500/30 bg-red-500/10 text-red-400 
+                             hover:bg-red-500 hover:text-white hover:border-red-500 transition-all duration-300 
+                             font-medium text-sm flex items-center gap-2 group/btn backdrop-blur-sm"
+                  >
+                    <span className="group-hover/btn:rotate-90 transition-transform duration-300">✕</span>
+                    移除文件
+                  </button>
                 </div>
               )}
             </div>
@@ -772,28 +1080,146 @@ const App: React.FC = () => {
 
           {/* MAIN ACTION BUTTONS - Show only when file is selected */}
           {!isProcessing && file && !resultBlob && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2">
-              <button
-                onClick={startTranslation}
-                className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-blue-600 p-5 transition-all hover:shadow-lg hover:shadow-primary/25 active:scale-95 text-left flex items-center gap-4"
-                onMouseEnter={() => { setIsHovering(true); setHoveredIndex(0); }}
-                onMouseLeave={() => setIsHovering(false)}
-              >
-                <div className="relative z-10 bg-white/20 p-3 rounded-lg backdrop-blur-sm shrink-0">
-                  <div className="text-2xl">🚀</div>
-                </div>
-                <div className="relative z-10 flex flex-col">
-                  <div className="font-bold text-white text-lg">文本翻译</div>
-                  <div className="text-xs text-blue-100 opacity-90">保持排版，智能翻译</div>
-                </div>
-                {/* Decorative glow */}
-                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
-              </button>
+            <div className="flex flex-wrap justify-center gap-5 animate-in fade-in slide-in-from-top-2">
+              {/* Video Generation - Only for PPTX */}
+              {file.name.toLowerCase().endsWith('.pptx') && (
+                <button
+                  onClick={async () => {
+                    // Video generation logic (no file check needed here as button is hidden)
+                    if (!file) {
+                      setError("请先选择一个文件");
+                      return;
+                    }
+
+                    // Start processing
+                    setIsProcessing(true);
+                    setProgress(10);
+                    setStatusMessage("初始化中...");
+                    setLogs(["启动视频生成引擎..."]);
+                    setError(null);
+                    setVideoStats(null);
+
+                    let jobId: string | null = null;
+                    try {
+                      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+                      await delay(1000);
+
+                      // Step 1: Create FormData with PPT file and API settings
+                      const step1Msg = "正在准备上传数据...";
+                      addLog(step1Msg);
+                      setStatusMessage(step1Msg);
+                      setProcessingDetail("正在准备PPT文件和API配置...");
+                      setProgress(20);
+                      await delay(1000);
+
+                      const formData = new FormData();
+                      formData.append('auditorEmail', '');
+                      formData.append('groupId', settings.videoSettings.minimaxGroupId);
+                      formData.append('accessToken', settings.videoSettings.minimaxAccessToken);
+                      formData.append('voiceId', settings.videoSettings.voiceId);
+                      formData.append('aiProvider', settings.activeProvider);
+                      formData.append('aiModel', settings.configs[settings.activeProvider].model);
+                      formData.append('aiApiKey', settings.configs[settings.activeProvider].apiKey);
+                      formData.append('aiBaseUrl', settings.configs[settings.activeProvider].baseUrl || '');
+                      formData.append('pptFile0', file);
+                      formData.append('processingType', 'video');
+
+                      // Step 2: Upload to n8n backend
+                      const step2Msg = "正在上传PPT文件到服务器...";
+                      addLog(step2Msg);
+                      setStatusMessage(step2Msg);
+                      setProcessingDetail(`正在上传 ${file.name}...`);
+                      setProgress(30);
+                      await delay(1000);
+
+                      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+                        method: 'POST',
+                        body: formData
+                      });
+
+                      if (!response.ok) {
+                        throw new Error(`上传失败: ${response.statusText}`);
+                      }
+
+                      const result = await response.json();
+                      const step2CompleteMsg = `上传成功，重定向URL: ${result.redirectUrl}`;
+                      addLog(step2CompleteMsg);
+                      setStatusMessage(step2CompleteMsg);
+                      setProcessingDetail("PPT文件上传成功，正在处理...");
+                      setProgress(50);
+                      await delay(1000);
+
+                      // Step 3: Extract jobId
+                      const urlParams = new URLSearchParams(new URL(result.redirectUrl).search);
+                      jobId = urlParams.get('jobId');
+                      if (!jobId) throw new Error("无法从响应中提取Job ID");
+
+                      const step3Msg = `提取到Job ID: ${jobId}`;
+                      addLog(step3Msg);
+                      setStatusMessage(step3Msg);
+                      setProcessingDetail("正在获取处理结果...");
+                      setProgress(60);
+                      await delay(1000);
+
+                      // Step 4: Get job data
+                      addLog("正在获取处理结果...");
+                      await new Promise(resolve => setTimeout(resolve, 5000));
+                      const jobDataResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-job-data?jobId=${jobId}`);
+                      if (!jobDataResponse.ok) throw new Error(`获取数据失败: ${jobDataResponse.statusText}`);
+                      const jobData = await jobDataResponse.json();
+
+                      const step4Msg = `获取到 ${jobData.notes.length} 张幻灯片的讲稿`;
+                      addLog(step4Msg);
+                      setStatusMessage(step4Msg);
+                      setProcessingDetail("正在准备讲稿和幻灯片数据...");
+                      setProgress(80);
+                      await delay(1000);
+
+                      // Step 5: Set data
+                      const images = jobData.slides.map((slide: string) =>
+                        buildMediaUrl(N8N_CONFIG.BASE_URL, jobId!, 'images', slide)
+                      );
+                      setSlideImages(images);
+                      const scripts = jobData.notes.map((note: any) => note.note);
+                      setSlideScripts(scripts);
+
+                      const step5Msg = "讲稿生成完成，准备进入审核页面...";
+                      addLog(step5Msg);
+                      setStatusMessage(step5Msg);
+                      setProcessingDetail("所有数据准备就绪，即将进入审核页面...");
+                      setProgress(100);
+                      await delay(1000);
+
+                    } catch (err: any) {
+                      setError(err.message || "发生意外错误。");
+                      setStatusMessage("失败");
+                      addLog(`错误: ${err.message}`);
+                      setIsProcessing(false);
+                    } finally {
+                      setIsProcessing(false);
+                      if (jobId) safeNavigate(`/?jobId=${jobId}`);
+                    }
+                  }}
+                  className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 p-5 transition-all hover:shadow-lg hover:shadow-purple-500/25 active:scale-95 text-left flex items-center gap-4 animate-in fade-in min-w-[260px] flex-1 max-w-[340px]"
+                  onMouseEnter={() => { setIsHovering(true); setHoveredIndex(1); }}
+                  onMouseLeave={() => setIsHovering(false)}
+                >
+                  <div className="relative z-10 bg-white/20 p-3 rounded-lg backdrop-blur-sm shrink-0 flex items-center justify-center w-14 h-14">
+                    <span className="font-serif font-bold text-white text-xl">🎬</span>
+                  </div>
+                  <div className="relative z-10 flex flex-col">
+                    <div className="font-bold text-white text-lg">视频配音</div>
+                    <div className="text-xs text-purple-100 opacity-90">AI讲稿+语音合成</div>
+                  </div>
+                  {/* Decorative glow */}
+                  <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
+                </button>
+              )}
 
               <button
                 onClick={async () => {
                   if (!file) {
-                    setError("请先选择一个PPTX文件");
+                    setError("请先选择一个文件");
                     return;
                   }
 
@@ -897,7 +1323,7 @@ const App: React.FC = () => {
                     }
                   }
                 }}
-                className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-600 to-amber-600 p-5 transition-all hover:shadow-lg hover:shadow-orange-500/25 active:scale-95 text-left flex items-center gap-4"
+                className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-600 to-amber-600 p-5 transition-all hover:shadow-lg hover:shadow-orange-500/25 active:scale-95 text-left flex items-center gap-4 min-w-[260px] flex-1 max-w-[340px]"
                 onMouseEnter={() => { setIsHovering(true); setHoveredIndex(4); }}
                 onMouseLeave={() => setIsHovering(false)}
               >
@@ -921,7 +1347,7 @@ const App: React.FC = () => {
                   // Open article settings dialog instead of direct generation
                   setIsArticleSettingsOpen(true);
                 }}
-                className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-5 transition-all hover:shadow-lg hover:shadow-blue-500/25 active:scale-95 text-left flex items-center gap-4"
+                className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 p-5 transition-all hover:shadow-lg hover:shadow-blue-500/25 active:scale-95 text-left flex items-center gap-4 min-w-[260px] flex-1 max-w-[340px]"
                 onMouseEnter={() => { setIsHovering(true); setHoveredIndex(2); }}
                 onMouseLeave={() => setIsHovering(false)}
               >
@@ -937,171 +1363,41 @@ const App: React.FC = () => {
               </button>
 
               <button
-                onClick={async () => {
-                  if (!file) {
-                    setError("请先选择一个PPTX文件");
-                    return;
-                  }
-
-                  // Start processing to generate slides and scripts for review
-                  setIsProcessing(true);
-                  setProgress(10);
-                  setStatusMessage("初始化中...");
-                  setLogs(["启动视频生成引擎..."]);
-                  setError(null);
-                  setVideoStats(null);
-
-                  let jobId: string | null = null;
-
-                  try {
-                    // Helper function to add delay
-                    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-                    // Wait at least 1 second for the initial status to be displayed
-                    await delay(1000);
-
-                    // Step 1: Create FormData with PPT file and API settings
-                    const step1Msg = "正在准备上传数据...";
-                    addLog(step1Msg);
-                    setStatusMessage(step1Msg);
-                    setProcessingDetail("正在准备PPT文件和API配置...");
-                    setProgress(20);
-                    await delay(1000); // Wait at least 1 second for this step
-
-                    const formData = new FormData();
-                    formData.append('auditorEmail', ''); // Default email
-                    formData.append('groupId', settings.videoSettings.minimaxGroupId);
-                    formData.append('accessToken', settings.videoSettings.minimaxAccessToken);
-                    formData.append('voiceId', settings.videoSettings.voiceId);
-                    // 添加AI讲稿生成参数
-                    formData.append('aiProvider', settings.activeProvider);
-                    formData.append('aiModel', settings.configs[settings.activeProvider].model);
-                    formData.append('aiApiKey', settings.configs[settings.activeProvider].apiKey);
-                    formData.append('aiBaseUrl', settings.configs[settings.activeProvider].baseUrl || '');
-                    formData.append('pptFile0', file!); // Use pptFile0 as expected by the webhook
-                    formData.append('processingType', 'video'); // 添加processingType参数
-
-                    // Step 2: Upload to n8n backend with correct webhook path
-                    const step2Msg = "正在上传PPT文件到服务器...";
-                    addLog(step2Msg);
-                    setStatusMessage(step2Msg);
-                    setProcessingDetail(`正在上传 ${file.name}...`);
-                    setProgress(30);
-                    await delay(1000); // Wait at least 1 second for this step
-
-                    const n8nUrl = N8N_CONFIG.BASE_URL;
-                    const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
-                      method: 'POST',
-                      body: formData
-                    });
-
-                    if (!response.ok) {
-                      throw new Error(`上传失败: ${response.statusText}`);
-                    }
-
-                    const result = await response.json();
-                    const step2CompleteMsg = `上传成功，重定向URL: ${result.redirectUrl}`;
-                    addLog(step2CompleteMsg);
-                    setStatusMessage(step2CompleteMsg);
-                    setProcessingDetail("PPT文件上传成功，正在处理...");
-                    setProgress(50);
-                    await delay(1000); // Wait at least 1 second for this step
-
-                    // Step 3: Extract jobId from redirectUrl
-                    const urlParams = new URLSearchParams(new URL(result.redirectUrl).search);
-                    jobId = urlParams.get('jobId');
-
-                    if (!jobId) {
-                      throw new Error("无法从响应中提取Job ID");
-                    }
-
-                    const step3Msg = `提取到Job ID: ${jobId}`;
-                    addLog(step3Msg);
-                    setStatusMessage(step3Msg);
-                    setProcessingDetail("正在获取处理结果...");
-                    setProgress(60);
-                    await delay(1000); // Wait at least 1 second for this step
-
-                    // Step 4: Get job data from backend
-                    addLog("正在获取处理结果...");
-                    // Wait a bit for the backend to process the PPT
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-
-                    // Use the correct endpoint to get job data
-                    const jobDataResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-job-data?jobId=${jobId}`);
-
-                    if (!jobDataResponse.ok) {
-                      throw new Error(`获取数据失败: ${jobDataResponse.statusText}`);
-                    }
-
-                    const jobData = await jobDataResponse.json();
-                    const step4Msg = `获取到 ${jobData.notes.length} 张幻灯片的讲稿`;
-                    addLog(step4Msg);
-                    setStatusMessage(step4Msg);
-                    setProcessingDetail("正在准备讲稿和幻灯片数据...");
-                    setProgress(80);
-                    await delay(1000); // Wait at least 1 second for this step
-
-                    // Step 5: Set slide images and scripts from backend
-                    const images = jobData.slides.map((slide: string) =>
-                      buildMediaUrl(N8N_CONFIG.BASE_URL, jobId, 'images', slide)
-                    );
-                    setSlideImages(images);
-
-                    const scripts = jobData.notes.map((note: any) => note.note);
-                    setSlideScripts(scripts);
-
-                    const step5Msg = "讲稿生成完成，准备进入审核页面...";
-                    addLog(step5Msg);
-                    setStatusMessage(step5Msg);
-                    setProcessingDetail("所有数据准备就绪，即将进入审核页面...");
-                    setProgress(100);
-                    await delay(1000); // Wait at least 1 second for this step
-
-                  } catch (err: any) {
-                    setError(err.message || "发生意外错误。");
-                    setStatusMessage("失败");
-                    addLog(`错误: ${err.message}`);
-                    setIsProcessing(false);
-                  } finally {
-                    setIsProcessing(false);
-                    // Redirect to video review page with jobId
-                    if (jobId) {
-                      safeNavigate(`/?jobId=${jobId}`);
-                    }
-                  }
-                }}
-                className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 p-5 transition-all hover:shadow-lg hover:shadow-purple-500/25 active:scale-95 text-left flex items-center gap-4"
-                onMouseEnter={() => { setIsHovering(true); setHoveredIndex(1); }}
+                onClick={startTranslation}
+                className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-primary to-blue-600 p-5 transition-all hover:shadow-lg hover:shadow-primary/25 active:scale-95 text-left flex items-center gap-4 min-w-[260px] flex-1 max-w-[340px]"
+                onMouseEnter={() => { setIsHovering(true); setHoveredIndex(0); }}
                 onMouseLeave={() => setIsHovering(false)}
               >
-                <div className="relative z-10 bg-white/20 p-3 rounded-lg backdrop-blur-sm shrink-0 flex items-center justify-center w-14 h-14">
-                  <span className="font-serif font-bold text-white text-xl">🎬</span>
+                <div className="relative z-10 bg-white/20 p-3 rounded-lg backdrop-blur-sm shrink-0">
+                  <div className="text-2xl">🚀</div>
                 </div>
                 <div className="relative z-10 flex flex-col">
-                  <div className="font-bold text-white text-lg">视频配音</div>
-                  <div className="text-xs text-purple-100 opacity-90">AI讲稿+语音合成</div>
+                  <div className="font-bold text-white text-lg">文本翻译</div>
+                  <div className="text-xs text-blue-100 opacity-90">保持排版，智能翻译</div>
                 </div>
                 {/* Decorative glow */}
                 <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
               </button>
 
-              <button
-                onClick={handleFontReplacement}
-                className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-secondary to-emerald-600 p-5 transition-all hover:shadow-lg hover:shadow-emerald-500/25 active:scale-95 text-left flex items-center gap-4"
-                onMouseEnter={() => { setIsHovering(true); setHoveredIndex(3); }}
-                onMouseLeave={() => setIsHovering(false)}
-              >
-                <div className="relative z-10 bg-white/20 p-3 rounded-lg backdrop-blur-sm shrink-0 flex items-center justify-center w-14 h-14">
-                  <span className="font-serif font-bold text-white text-xl">Aa</span>
-                </div>
-                <div className="relative z-10 flex flex-col">
-                  <div className="font-bold text-white text-lg">字体统一</div>
-                  <div className="text-xs text-emerald-100 opacity-90">一键转为{getFontDisplayName(selectedFont)}</div>
-                </div>
-                {/* Decorative glow */}
-                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
-              </button>
+              {/* Font Replacement - Only for PPTX */}
+              {file.name.toLowerCase().endsWith('.pptx') && (
+                <button
+                  onClick={handleFontReplacement}
+                  className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-secondary to-emerald-600 p-5 transition-all hover:shadow-lg hover:shadow-emerald-500/25 active:scale-95 text-left flex items-center gap-4 animate-in fade-in min-w-[260px] flex-1 max-w-[340px]"
+                  onMouseEnter={() => { setIsHovering(true); setHoveredIndex(3); }}
+                  onMouseLeave={() => setIsHovering(false)}
+                >
+                  <div className="relative z-10 bg-white/20 p-3 rounded-lg backdrop-blur-sm shrink-0 flex items-center justify-center w-14 h-14">
+                    <span className="font-serif font-bold text-white text-xl">Aa</span>
+                  </div>
+                  <div className="relative z-10 flex flex-col">
+                    <div className="font-bold text-white text-lg">字体统一</div>
+                    <div className="text-xs text-emerald-100 opacity-90">一键转为{getFontDisplayName(selectedFont)}</div>
+                  </div>
+                  {/* Decorative glow */}
+                  <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
+                </button>
+              )}
             </div>
           )}
 

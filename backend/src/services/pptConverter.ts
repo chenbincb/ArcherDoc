@@ -93,7 +93,7 @@ export class PPTConverter {
   /**
    * PDF转PNG图片
    */
-  private async convertPdfToImages(pdfPath: string, outputDir: string): Promise<number> {
+  public async convertPdfToImages(pdfPath: string, outputDir: string): Promise<number> {
     const outputPrefix = path.join(outputDir, 'slide_temp');
     const command = `pdftoppm -png "${pdfPath}" "${outputPrefix}"`;
 

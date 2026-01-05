@@ -108,19 +108,25 @@ export class TTSService {
   async generateCoquiAudio(
     text: string,
     options: {
+      url: string;
       speakerWav: string;
       gpuThresholdGb?: number;
     }
   ): Promise<Buffer> {
-    const url = new URL('http://localhost:8001/generate');
+    // 优先使用传入的 URL，如果没有则使用默认值
+    const urlStr = options.url || 'http://178.109.129.11:8001/generate';
+    const url = new URL(urlStr);
 
     // 注意：尝试不传递 output_path，期望 API 直接返回音频流数据
     // 这样可以兼容开发环境(Mac)和生产环境(Linux)
     const payload = {
       text,
       speaker_wav: options.speakerWav,
+      language_id: 'zh', // 显式指定中文，某些模型需要
       gpu_threshold_gb: options.gpuThresholdGb || 4.0
     };
+
+    console.log('Coqui TTS Payload:', JSON.stringify(payload));
 
     const response = await new Promise<IncomingMessage>((resolve, reject) => {
       const req = http.request(url, {

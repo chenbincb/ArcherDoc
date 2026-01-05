@@ -6,6 +6,7 @@ interface SlideNavigationProps {
   onPreviousSlide: () => void;
   onNextSlide: () => void;
   className?: string;
+  isTextMode?: boolean;
 }
 
 export const SlideNavigation: React.FC<SlideNavigationProps> = ({
@@ -13,7 +14,8 @@ export const SlideNavigation: React.FC<SlideNavigationProps> = ({
   totalSlides,
   onPreviousSlide,
   onNextSlide,
-  className = ""
+  className = "",
+  isTextMode
 }) => {
   return (
     <div className={`p-4 border-t border-gray-700 relative ${className}`}>
@@ -23,7 +25,7 @@ export const SlideNavigation: React.FC<SlideNavigationProps> = ({
           disabled={currentSlide === 0}
           className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded-lg transition-colors"
         >
-          ← 上一页
+          ← {isTextMode ? '上一个' : '上一页'}
         </button>
 
         {/* Progress Bar */}
@@ -41,10 +43,10 @@ export const SlideNavigation: React.FC<SlideNavigationProps> = ({
           disabled={currentSlide === totalSlides - 1}
           className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded-lg transition-colors"
         >
-          下一页 →
+          {isTextMode ? '下一个' : '下一页'} →
         </button>
 
-        </div>
+      </div>
     </div>
   );
 };

@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import fs from 'fs/promises';
+import path from 'path';
 import { createApp } from './app.js';
 import { getJobManager } from './services/jobManager.js';
 import { getPPTConverter } from './services/pptConverter.js';
@@ -37,6 +39,15 @@ async function startServer() {
     logger.info('Initializing JobManager...');
     const jobManager = getJobManager();
     logger.success('JobManager initialized successfully');
+
+    // 确保上传目录存在
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    try {
+      await fs.mkdir(uploadsDir, { recursive: true });
+      logger.success(`Uploads directory confirmed at: ${uploadsDir}`);
+    } catch (err) {
+      logger.error(`Failed to create uploads directory: ${err}`);
+    }
 
     // 创建应用
     const app = createApp();

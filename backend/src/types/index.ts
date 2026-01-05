@@ -1,7 +1,7 @@
 /**
  * 任务类型
  */
-export type JobType = 'article' | 'video' | 'image';
+export type JobType = 'article' | 'video' | 'image' | 'translation';
 
 /**
  * 任务状态

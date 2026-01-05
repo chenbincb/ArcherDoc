@@ -64,6 +64,7 @@ export enum SpeechModelType {
 }
 
 export interface CoquiTTSSettings {
+  url: string; // Coqui TTS Server URL
   speakerWav: string; // Path to speaker reference audio file
   gpuThresholdGb: number; // Minimum GPU memory required to use GPU
 }
@@ -215,6 +216,22 @@ export interface ImageGenerationSettings {
   imageFormat: 'png' | 'jpg';
 }
 
+export interface ImageVersionMetadata {
+  prompt: string;
+  negativePrompt?: string;
+  provider: string;
+  width: number;
+  height: number;
+  generationTime: number;
+  createdAt: string;
+}
+
+export interface ImageVersion {
+  url: string;
+  filename: string;
+  metadata: ImageVersionMetadata;
+}
+
 export interface SlideImageData {
   id: number;
   slideTitle: string;
@@ -227,6 +244,7 @@ export interface SlideImageData {
   generatedImage?: GeneratedImage;
   generationStatus: 'pending' | 'generating' | 'completed' | 'error';
   errorMessage?: string;
+  generatedImageVersions?: ImageVersion[]; // 所有生成的图片版本
 }
 
 export interface GeneratedImage {

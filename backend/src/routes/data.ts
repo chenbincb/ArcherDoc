@@ -3,9 +3,109 @@ import path from 'path';
 import { getJobManager } from '../services/jobManager.js';
 import { asyncHandler } from '../middleware/error.js';
 import { logger } from '../middleware/logger.js';
-import { JobData } from '../types/index.js';
 
 const router = Router();
+
+console.log('✅ Data router loaded');
+
+/**
+ * 获取指定 slide/场景 的所有生成图片版本
+ * @param generatedImagesDir 生成图片目录
+ * @param prefix 文件名前缀 (如 slide_1 或 image)
+ * @param jobId Job ID
+ * @returns 图片版本数组
+ */
+async function getImageVersions(
+  generatedImagesDir: string,
+  prefix: string,
+  jobId: string
+): Promise<Array<{
+  url: string;
+  filename: string;
+  metadata: any;
+}>> {
+  const fs = await import('fs/promises');
+  const versions: Array<{ url: string; filename: string; metadata: any }> = [];
+
+  try {
+    const files = await fs.readdir(generatedImagesDir);
+    // 匹配格式: {prefix}_{provider}_{number}.png 或旧格式 {prefix}.png
+    const pattern = new RegExp(`^${prefix}(_\\w+_\\d+)?\\.png$`);
+
+    const matchedFiles = files.filter(f => pattern.test(f)).sort();
+
+    for (const filename of matchedFiles) {
+      const metadataPath = path.join(generatedImagesDir, filename.replace('.png', '.json'));
+      let metadata = null;
+
+      try {
+        const metadataContent = await fs.readFile(metadataPath, 'utf-8');
+        metadata = JSON.parse(metadataContent);
+      } catch {
+        // 旧格式图片可能没有元数据
+        metadata = { prompt: '', provider: 'unknown', width: 1024, height: 1024, generationTime: 0, createdAt: '' };
+      }
+
+      versions.push({
+        url: `/webhook/servefiles/api/slides-data/${jobId}/generated_images/${filename}`,
+        filename,
+        metadata
+      });
+    }
+  } catch {
+    // 目录不存在
+  }
+
+  return versions;
+}
+
+
+/**
+ * GET /webhook/api/get-doc-content
+ * 获取文档提取出的原始结构化内容 (含样式)
+ * Moved to top to ensure priority
+ */
+router.get(
+  '/get-doc-content',
+  asyncHandler(async (req: Request, res: Response) => {
+    console.log(`🔍 Request received for /get-doc-content: ${req.query.jobId}`);
+    const { jobId } = req.query;
+
+    if (!jobId || typeof jobId !== 'string') {
+      return res.status(400).json({ success: false, error: 'jobId is required' });
+    }
+
+    const jobManager = getJobManager();
+    const job = jobManager.getJob(jobId);
+
+    if (!job) {
+      logger.warn(`get-doc-content: Job ${jobId} not found`);
+      return res.status(404).json({ success: false, error: 'Job not found' });
+    }
+
+    const jobDir = jobManager.getJobDir(jobId);
+    const fs = await import('fs/promises');
+    const contentPath = path.join(jobDir, 'doc_content.json');
+
+    try {
+      await fs.access(contentPath);
+      const contentData = await fs.readFile(contentPath, 'utf-8');
+      const docContent = JSON.parse(contentData);
+
+      logger.info(`Successfully served doc_content.json for ${jobId}`);
+      res.json({
+        success: true,
+        data: docContent
+      });
+    } catch (error: any) {
+      logger.warn(`get-doc-content: File not found at ${contentPath}`);
+      res.status(404).json({
+        success: false,
+        error: 'Document content not found or extraction in progress'
+      });
+    }
+  })
+);
 
 /**
  * GET /webhook/api/get-job-data
@@ -14,49 +114,44 @@ const router = Router();
 router.get(
   '/get-job-data',
   asyncHandler(async (req: Request, res: Response) => {
-    const { jobId, type } = req.query;
+    const { jobId } = req.query;
 
     if (!jobId || typeof jobId !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'jobId is required'
-      });
+      return res.status(400).json({ success: false, error: 'jobId is required' });
     }
-
-    logger.info(`Fetching job data: ${jobId}`);
 
     const jobManager = getJobManager();
     const job = jobManager.getJob(jobId);
 
     if (!job) {
-      return res.status(404).json({
-        success: false,
-        error: 'Job not found'
-      });
+      return res.status(404).json({ success: false, error: 'Job not found' });
     }
 
     const jobDir = jobManager.getJobDir(jobId);
     const fs = await import('fs/promises');
 
     try {
-      // 1. 读取基础内容文件 (notes.json 或 image_data.json)
       const notesPath = path.join(jobDir, 'notes.json');
       const imageDataPath = path.join(jobDir, 'image_data.json');
 
-      let notesData: any[] = [];
+      let notesData = [];
       try {
-        const content = await fs.readFile(notesPath, 'utf-8');
-        notesData = JSON.parse(content);
+        const rawNotes = await fs.readFile(notesPath, 'utf-8');
+        notesData = JSON.parse(rawNotes);
+        // 如果是对象格式 { scenes: [...] }，则提取数组
+        if (notesData && typeof notesData === 'object' && !Array.isArray(notesData) && (notesData as any).scenes) {
+          notesData = (notesData as any).scenes;
+        }
       } catch {
+        // 如果没有 notes.json，尝试读取 image_data.json (兼容旧版)
         try {
-          const content = await fs.readFile(imageDataPath, 'utf-8');
-          notesData = JSON.parse(content);
+          notesData = JSON.parse(await fs.readFile(imageDataPath, 'utf-8'));
         } catch {
+          // 如果是文本文档任务且没有场景数据，返回空数组
           notesData = [];
         }
       }
 
-      // 2. 扫描物理目录以确认文件真实存在
       const getFiles = async (subdir: string) => {
         try {
           const files = await fs.readdir(path.join(jobDir, subdir));
@@ -71,28 +166,38 @@ router.get(
       const videoFiles = await getFiles('video');
       const genImageFiles = await getFiles('generated_images');
 
-      // 3. 构建统一的幻灯片资源状态矩阵
-      // 确定总页数 (优先使用扫描到的原始图片数量，如果没有则看notes)
+      // 识别是否为文本文档模式 (通过原始文件名或Job元数据)
+      const originalFilename = job.metadata?.originalFilename || '';
+      const isTextMode = !!originalFilename.match(/\.(docx|pdf|txt|md)$/i);
+
       const maxSlideNum = Math.max(
-        ...slideFiles.map(f => parseInt(f.match(/\d+/)![0]) + 1), // slide_0 -> 1
+        ...slideFiles.map(f => {
+          const m = f.match(/\d+/);
+          return m ? parseInt(m[0]) + 1 : 0;
+        }),
         notesData.length
       );
 
       const slides = [];
       for (let i = 0; i < maxSlideNum; i++) {
-        // 兼容 0-based 和 1-based 索引查找内容
-        const slideId = i; // 我们在这里统一用 0-based 逻辑，前端会根据这个渲染
+        const slideId = i;
         const noteEntry = notesData.find((n: any) => (n.id === slideId || n.id === slideId + 1 || n.slideId === slideId || n.slideId === slideId + 1));
 
-        // 检查各种文件是否存在
-        // 我们同时检查 slide_0 和 slide_1 以应对不同导出工具的差异
         const hasFile = (list: string[], prefix: string, ext: string) =>
           list.includes(`${prefix}${i}${ext}`) || list.includes(`${prefix}${i + 1}${ext}`);
 
         const hasSlide = hasFile(slideFiles, 'slide_', '.png');
         const hasAudio = hasFile(audioFiles, 'slide_', '.mp3');
         const hasVideo = hasFile(videoFiles, 'slide_', '.mp4');
-        const hasGenImage = hasFile(genImageFiles, 'slide_', '.png');
+        const hasGenImageOld = hasFile(genImageFiles, 'slide_', '.png');
+
+        // 获取该 slide 的所有生成图片版本
+        // 逻辑与 generate.ts 保持一致: 文本文档模式前缀为 'image', 幻灯片模式为 'slide_{id}'
+        const filePrefix = isTextMode ? 'image' : `slide_${i}`;
+        const generatedImagesDir = path.join(jobDir, 'generated_images');
+        const imageVersions = await getImageVersions(generatedImagesDir, filePrefix, jobId as string);
+        const latestVersion = imageVersions.length > 0 ? imageVersions[0] : null;
+        const hasGenImage = imageVersions.length > 0 || hasGenImageOld;
 
         slides.push({
           index: i,
@@ -100,23 +205,15 @@ router.get(
           note: noteEntry?.note || noteEntry?.description || '',
           title: noteEntry?.title || '',
           resources: {
-            image: {
-              exists: hasSlide,
-              url: hasSlide ? `/webhook/servefiles/api/slides-data/${jobId}/images/slide_${i}.png` : null
-            },
-            audio: {
-              exists: hasAudio,
-              url: hasAudio ? `/webhook/servefiles/api/slides-data/${jobId}/audio/slide_${i}.mp3` : null
-            },
-            video: {
-              exists: hasVideo,
-              url: hasVideo ? `/webhook/servefiles/api/slides-data/${jobId}/video/slide_${i}.mp4` : null
-            },
+            image: { exists: hasSlide, url: hasSlide ? `/webhook/servefiles/api/slides-data/${jobId}/images/slide_${i}.png` : null },
+            audio: { exists: hasAudio, url: hasAudio ? `/webhook/servefiles/api/slides-data/${jobId}/audio/slide_${i}.mp3` : null },
+            video: { exists: hasVideo, url: hasVideo ? `/webhook/servefiles/api/slides-data/${jobId}/video/slide_${i}.mp4` : null },
             generatedImage: {
               exists: hasGenImage,
-              url: hasGenImage ? `/webhook/servefiles/api/slides-data/${jobId}/generated_images/slide_${i}.png` : null
+              url: latestVersion ? latestVersion.url : null
             }
-          }
+          },
+          generatedImageVersions: imageVersions
         });
       }
 
@@ -128,119 +225,95 @@ router.get(
           status: job.status,
           progress: job.progress,
           metadata: job.metadata,
-          slides: slides, // ✅ 新增的统一资源结构
-          notes: notesData // 保持向下兼容
+          slides: slides,
+          notes: notesData
         }
       });
     } catch (error: any) {
       logger.error(`Error reading job data for ${jobId}:`, error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to read job data'
-      });
+      res.status(500).json({ success: false, error: 'Failed to read job data' });
     }
   })
 );
 
 /**
  * GET /webhook/api/get-article-data
- * 获取文章数据
  */
 router.get(
   '/get-article-data',
   asyncHandler(async (req: Request, res: Response) => {
     const { jobId } = req.query;
-
-    if (!jobId || typeof jobId !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'jobId is required'
-      });
-    }
-
-    logger.info(`Fetching article data: ${jobId}`);
+    if (!jobId || typeof jobId !== 'string') return res.status(400).json({ success: false, error: 'jobId is required' });
 
     const jobManager = getJobManager();
     const job = jobManager.getJob(jobId);
-
-    if (!job) {
-      return res.status(404).json({
-        success: false,
-        error: 'Job not found'
-      });
-    }
+    if (!job) return res.status(404).json({ success: false, error: 'Job not found' });
 
     const jobDir = jobManager.getJobDir(jobId);
     const fs = await import('fs/promises');
 
     try {
       const articleJsonPath = path.join(jobDir, 'article.json');
-      const articleTxtPath = path.join(jobDir, 'article.txt');
-      const oldJsonPath = path.join(jobDir, 'generated_article.json');
-      const oldTxtPath = path.join(jobDir, 'generated_article.txt');
-
-      let content = '';
-      let wordCount = 0;
-
-      try {
-        // 优先尝试读取 JSON (结构化数据)
-        const jsonContent = await fs.readFile(articleJsonPath, 'utf-8');
-        const articleData = JSON.parse(jsonContent);
-        content = articleData.article?.content || articleData.content || '';
-        wordCount = articleData.article?.word_count || content.length;
-      } catch {
-        try {
-          // 尝试读取 TXT
-          content = await fs.readFile(articleTxtPath, 'utf-8');
-          wordCount = content.length;
-        } catch {
-          // 兼容旧版
-          try {
-            const oldJson = await fs.readFile(oldJsonPath, 'utf-8');
-            const articleData = JSON.parse(oldJson);
-            content = articleData.article?.content || '';
-            wordCount = content.length;
-          } catch {
-            try {
-              content = await fs.readFile(oldTxtPath, 'utf-8');
-              wordCount = content.length;
-            } catch {
-              content = '';
-            }
-          }
-        }
-      }
-
-      // 同时读取notes.json(如果存在)
-      const notesPath = `${jobDir}/notes.json`;
-      let notes = [];
-
-      try {
-        const notesContent = await fs.readFile(notesPath, 'utf-8');
-        const notesData = JSON.parse(notesContent);
-        notes = notesData.notes || notesData;
-      } catch {
-        // notes.json不存在
-      }
+      const rawData = await fs.readFile(articleJsonPath, 'utf-8');
+      const articleData = JSON.parse(rawData);
 
       res.json({
         success: true,
         data: {
           jobId: job.id,
           status: job.status,
-          article: {
-            content,
-            wordCount
+          article: articleData.article,
+          metadata: {
+            ...job.metadata,
+            ...articleData.metadata
           },
-          notes,
-          metadata: job.metadata
+          source: {
+            ppt_title: job.metadata.originalFilename?.replace(/\.[^/.]+$/, "")
+          }
         }
       });
     } catch (error: any) {
-      logger.error(`Error reading article data for ${jobId}:`, error);
-      res.status(500).json({
+      res.status(500).json({ success: false, error: 'Failed to read article data' });
+    }
+  })
+);
+
+/**
+ * GET /webhook/api/get-doc-content
+ * 获取文档提取出的原始结构化内容 (含样式)
+ */
+router.get(
+  '/get-doc-content',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { jobId } = req.query;
+    if (!jobId || typeof jobId !== 'string') return res.status(400).json({ success: false, error: 'jobId is required' });
+
+    const jobManager = getJobManager();
+    const job = jobManager.getJob(jobId);
+
+    if (!job) {
+      logger.warn(`get-doc-content: Job ${jobId} not found`);
+      return res.status(404).json({ success: false, error: 'Job not found' });
+    }
+
+    const jobDir = jobManager.getJobDir(jobId);
+    const fs = await import('fs/promises');
+    const contentPath = path.join(jobDir, 'doc_content.json');
+
+    try {
+      await fs.access(contentPath);
+      const contentData = await fs.readFile(contentPath, 'utf-8');
+      const docContent = JSON.parse(contentData);
+
+      res.json({
+        success: true,
+        data: docContent
+      });
+    } catch (error: any) {
+      logger.warn(`get-doc-content: File not found at ${contentPath}`);
+      res.status(404).json({
         success: false,
-        error: 'Failed to read article data'
+        error: 'Document content not found or extraction in progress'
       });
     }
   })

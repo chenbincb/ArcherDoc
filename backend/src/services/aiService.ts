@@ -125,6 +125,55 @@ export class AIService {
   }
 
   /**
+   * 使用内置 Qwen-VL 模型识别图片内容 (完全复刻 Python 脚本逻辑)
+   * @param imageBase64 图片的 Base64 编码 (不带前缀)
+   * @param prompt (可选) 识别提示词，默认使用幻灯片识别提示词
+   */
+  async recognizeImageWithQwenVL(imageBase64: string, prompt?: string): Promise<string | null> {
+    const config = {
+      baseUrl: "http://178.109.129.11:8008/v1",
+      model: "/home/n8n/Qwen3-VL/Qwen3-VL-4B-Instruct",
+      apiKey: "EMPTY"
+    };
+
+    const defaultPrompt = "请详细描述这张幻灯片的内容，包括标题、正文、图表、图片等所有元素。输出简洁明了，直接给出描述结果。";
+
+    try {
+      const response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.apiKey}`
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: prompt || defaultPrompt },
+              { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } }
+            ]
+          }],
+          temperature: 0.1
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Qwen-VL API error: ${response.status}`);
+      }
+
+      const data: any = await response.json();
+      if (data && data.choices && data.choices.length > 0) {
+        return data.choices[0].message.content.trim();
+      }
+      return null;
+    } catch (error) {
+      console.error('[AIService] Built-in Qwen-VL recognition failed:', error);
+      return null;
+    }
+  }
+
+  /**
    * 分析幻灯片内容,生成图片描述和提示词（和n8n Python脚本保持一致）
    */
   async analyzeSlideForImage(
@@ -299,6 +348,11 @@ ${content}
 
     return await this.generateText(prompt);
   }
+
+  /**
+   * 从长文中提炼可视化场景 (Scene Extraction)
+   */
+
 }
 
 /**

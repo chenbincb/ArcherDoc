@@ -27,6 +27,7 @@ router.post(
       speechRate,
       speakerWav,
       gpuThresholdGb,
+      url,
       qwenApiKey,
       qwenModel,
       qwenVoiceId
@@ -35,7 +36,7 @@ router.post(
     // 严格按照n8n的实现，使用modelType作为服务类型
     const actualService = modelType || 'minimax';
 
-    logger.info('Generating single audio', { slideId, service: actualService });
+    logger.info('Generating single audio', { slideId, service: actualService, url });
 
     // Debug: 打印接收到的 Qwen 参数
     if (actualService === 'qwen_tts') {
@@ -78,6 +79,7 @@ router.post(
         speechRate: speechRate,
         speakerWav: speakerWav,
         gpuThresholdGb: gpuThresholdGb,
+        url: url,
         apiKey: qwenApiKey,
         model: qwenModel
       });

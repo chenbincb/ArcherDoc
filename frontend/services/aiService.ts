@@ -23,11 +23,11 @@ const buildSystemPrompt = (targetLanguage: string, glossary: GlossaryItem[] = []
   let prompt = BASE_SYSTEM_PROMPT + `\nTarget Language: ${targetLanguage}`;
   
   if (glossary && glossary.length > 0) {
-    prompt += `\n\nTERMINOLOGY GLOSSARY (STRICTLY FOLLOW THESE RULES):
-    You MUST use the specific translations defined below for the following terms:`;
+    prompt += `\n\nTERMINOLOGY GLOSSARY (STRICTLY FOLLOW THESE RULES):                                                                                                                                                                                  │
+    You MUST use the specific translations defined below for the following terms:`; 
     glossary.forEach(item => {
       if (item.term.trim() && item.translation.trim()) {
-        prompt += `\n- "${item.term}" MUST be translated as "${item.translation}"`;
+        prompt += `\n- "${item.term}" MUST be translated as "${item.translation}"`;  
       }
     });
   }
@@ -192,11 +192,12 @@ async function translateWithGeneric(
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
 
+  
   const body = {
     model: model,
     messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: text }
+      { role: 'system', content: systemPrompt },                                                                                                                                                                                            
+      { role: 'user', content: text } 
     ],
     temperature: 0.1,
   };

@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import fs from 'fs/promises';
 import path from 'path';
+import { AIService } from './aiService.js';
 
 /**
  * PPT内容提取服务
@@ -9,8 +10,15 @@ import path from 'path';
 export class PPTExtractor {
   /**
    * 从PPTX文件中提取所有幻灯片的文本内容
+   * @param pptPath PPT文件路径
+   * @param imagesDir (可选) 幻灯片图片目录，用于视觉识别
+   * @param aiService (可选) AI服务实例，用于调用Vision模型
    */
-  async extractSlidesContent(pptPath: string): Promise<Array<{
+  async extractSlidesContent(
+    pptPath: string, 
+    imagesDir?: string, 
+    aiService?: AIService
+  ): Promise<Array<{
     slideId: number;
     title: string;
     content: string;
@@ -48,16 +56,60 @@ export class PPTExtractor {
       // 3. 提取标题和正文
       const title = this.extractTitleFromXML(slideXml) || '';
       const texts = this.extractTextsFromXML(slideXml);
+      let content = texts.join('\n');
+
+      // 4. 视觉增强提取 (如果存在 visual content 且有 AI 服务)
+      if (imagesDir && aiService && this.hasVisualContent(slideXml)) {
+        try {
+          // 查找对应的图片文件 (假设名为 slide_1.png, slide_2.png 或 slide1.png 等，需匹配 upload.ts 生成规则)
+          // 这里的命名规则通常取决于 pptConverter 的输出，pdftoppm 是 slide-1.png, libreoffice 是 slide1.png
+          // 我们尝试几种常见格式
+          const possibleNames = [`slide${slideId}.png`, `slide_${slideId}.png`, `slide-${slideId}.png`];
+          let imagePath = '';
+          
+          for (const name of possibleNames) {
+            const p = path.join(imagesDir, name);
+            try {
+              await fs.access(p);
+              imagePath = p;
+              break;
+            } catch {}
+          }
+
+          if (imagePath) {
+            console.log(`[PPTExtractor] Visual recognition for slide ${slideId}...`);
+            const imageBuffer = await fs.readFile(imagePath);
+            const base64 = imageBuffer.toString('base64');
+            const visualDescription = await aiService.recognizeImageWithQwenVL(base64);
+
+            if (visualDescription) {
+              content = `【原始文本内容】:\n${content}\n\n【视觉布局描述】:\n${visualDescription}`;
+            }
+          }
+        } catch (err) {
+          console.error(`[PPTExtractor] Visual recognition failed for slide ${slideId}:`, err);
+        }
+      }
 
       slides.push({
         slideId,
         title,
-        content: texts.join('\n'),
+        content,
         notes
       });
     }
 
     return slides;
+  }
+
+  /**
+   * 检查 XML 中是否包含视觉元素 (图片, 表格, 图表)
+   */
+  private hasVisualContent(xml: string): boolean {
+    // <p:pic> = 图片
+    // <a:tbl> = 表格
+    // <p:graphicFrame> = 图表/SmartArt
+    return /<p:pic|<a:tbl|<p:graphicFrame/.test(xml);
   }
 
   /**
@@ -79,7 +131,7 @@ export class PPTExtractor {
       // 计算备注文件的绝对路径 (Target 通常是相对路径，如 "../notesSlides/notesSlide1.xml")
       const targetRelPath = match[1];
       const notesPath = path.normalize(path.join(slideDir, targetRelPath)).replace(/\\/g, '/');
-      
+
       const notesXml = await zip.file(notesPath)?.async('string');
       if (!notesXml) return '';
 
@@ -98,7 +150,7 @@ export class PPTExtractor {
     // 逻辑：找到包含 <p:ph type="title".../> 或 type="ctrTitle" 的形状块，然后提取其文本
     const spRegex = /<p:sp>([\s\S]*?)<\/p:sp>/g;
     let match;
-    
+
     while ((match = spRegex.exec(xml)) !== null) {
       const spContent = match[1];
       if (spContent.includes('type="title"') || spContent.includes('type="ctrTitle"')) {
@@ -106,7 +158,7 @@ export class PPTExtractor {
         if (texts.length > 0) return texts.join(' ');
       }
     }
-    
+
     // 如果没找到显式标记，返回第一个非空文本（备选方案）
     const allTexts = this.extractTextsFromXML(xml);
     return allTexts[0] || null;

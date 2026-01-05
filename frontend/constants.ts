@@ -75,6 +75,7 @@ export const DEFAULT_VIDEO_SETTINGS: VideoSettings = {
 
   // Coqui TTS Settings
   coquiSettings: {
+    url: 'http://178.109.129.11:8001/generate',
     speakerWav: 'default_speaker.wav',
     gpuThresholdGb: 4.0
   },
@@ -91,7 +92,7 @@ export const DEFAULT_VIDEO_SETTINGS: VideoSettings = {
 export const DEFAULT_IMAGE_SETTINGS: ImageGenerationSettings = {
   // ComfyUI settings
   comfyuiSettings: {
-    baseUrl: 'http://localhost:8188',
+    baseUrl: 'http://178.109.129.11:8188',
     model: 'z-image',
     workflowId: 'default',
     steps: 20,
@@ -153,7 +154,7 @@ export const POPULAR_LANGUAGES = [
 
 // n8n配置
 export const N8N_CONFIG = {
-  BASE_URL: 'http://localhost:4567',
+  BASE_URL: import.meta.env.DEV ? '' : 'http://ai.archeros.cn:4567',
   API_PATH: '/webhook/api',
   WEBHOOK_PATH: '/webhook'
 };

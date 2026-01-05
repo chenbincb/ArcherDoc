@@ -16,7 +16,7 @@ export async function parseArticlePrompt(
     const summary = contentData?.summary || {};
     const slides = contentData?.slides || (Array.isArray(contentData) ? contentData : []);
 
-    // 标题：优先用 ppt_content.json 里的，其次用文件名
+    // 标题：优先用提取出的内容中的标题，其次用文件名
     const title = meta.title || jobMetadata?.originalFilename?.replace(/\.[^/.]+$/, "") || '未命名演示文稿';
     // 作者
     const author = meta.author || jobMetadata?.auditorEmail?.split('@')[0] || 'AI助手';
@@ -33,6 +33,18 @@ export async function parseArticlePrompt(
     logger.info(`[Prompt Engine] Job Metadata: ${JSON.stringify(jobMetadata)}`);
     logger.info(`[Prompt Engine] Context: Title="${title}", Slides=${totalSlides}/${contentSlides}`);
 
+    // 风格与平台的动态映射
+    const styleMap: Record<string, { platform: string, style: string }> = {
+        'wechat': { platform: '微信公众号', style: '专业深度' },
+        'xiaohongshu': { platform: '小红书', style: '生活化，种草推荐' },
+        'weibo': { platform: '微博', style: '简洁有力，话题性强' },
+        'zhihu': { platform: '知乎', style: '理性分析，专业解答' },
+        'douyin': { platform: '抖音', style: '短视频脚本，节奏紧凑' },
+        'bilibili': { platform: 'B站', style: '年轻化，知识分享' }
+    };
+
+    const currentStyle = styleMap[jobMetadata?.articleStyle] || styleMap['wechat'];
+
     const replacements: Record<string, string> = {
         'PPT_TITLE': title,
         'PPT_AUTHOR': author,
@@ -40,8 +52,8 @@ export async function parseArticlePrompt(
         'CONTENT_SLIDES': contentSlides.toString(),
         'CONTENT_SUMMARY': contentSummary,
         'EXISTING_ARTICLE': existingArticle,
-        'PLATFORM_NAME': '微信公众号', // 默认常用平台
-        'WRITING_STYLE': '专业深度'
+        'PLATFORM_NAME': currentStyle.platform,
+        'WRITING_STYLE': currentStyle.style
     };
 
     let result = prompt;

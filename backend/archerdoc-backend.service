@@ -1,0 +1,26 @@
+[Unit]
+Description=ArcherDoc API Server
+After=network.target
+
+[Service]
+# 根据您的环境修改 User
+User=n8n
+WorkingDirectory=/home/n8n/ArcherDoc/backend
+
+# 启动命令
+# 生产环境推荐直接运行编译后的 JS
+ExecStart=/usr/bin/node dist/server.js
+
+# 重启策略
+Restart=always
+RestartSec=10
+
+# 环境变量
+Environment=NODE_ENV=production
+Environment=PORT=4567
+# 如果有其他环境变量，请在此添加，例如:
+# Environment=GEMINI_API_KEY=your_key_here
+# Environment=JOBS_DIR=/home/n8n/ArcherDoc/backend/jobs
+
+[Install]
+WantedBy=multi-user.target

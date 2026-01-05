@@ -4,6 +4,7 @@ import { getJobManager } from '../services/jobManager.js';
 import { getAIService } from '../services/aiService.js';
 import { getTTSService } from '../services/ttsService.js';
 import { getVideoService } from '../services/videoService.js';
+import DocxGenerator from '../services/docxGenerator.js';
 import ComfyUIService from '../services/comfyUIService.js';
 import { asyncHandler } from '../middleware/error.js';
 import { logger } from '../middleware/logger.js';
@@ -13,8 +14,114 @@ import path from 'path';
 
 const router = Router();
 
+/**
+ * 图片元数据接口
+ */
+interface ImageMetadata {
+  prompt: string;
+  negativePrompt?: string;
+  provider: string;
+  width: number;
+  height: number;
+  generationTime: number;
+  createdAt: string;
+}
+
+/**
+ * 获取下一个图片编号
+ * @param generatedImagesDir 生成图片目录
+ * @param prefix 文件名前缀 (如 slide_1 或 image)
+ * @param provider 生成器 (comfyui 或 gemini)
+ * @returns 下一个编号 (如 001, 002)
+ */
+async function getNextImageNumber(
+  generatedImagesDir: string,
+  prefix: string,
+  provider: string
+): Promise<string> {
+  try {
+    const files = await fs.readdir(generatedImagesDir);
+    // 匹配格式: {prefix}_{provider}_XXX.png
+    const pattern = new RegExp(`^${prefix}_${provider}_(\\d+)\\.png$`);
+    let maxNumber = 0;
+
+    for (const file of files) {
+      const match = file.match(pattern);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    }
+
+    return String(maxNumber + 1).padStart(3, '0');
+  } catch (error) {
+    // 目录不存在或读取失败，从 001 开始
+    return '001';
+  }
+}
+
+/**
+ * 保存图片和元数据
+ * @param imagePath 图片完整路径
+ * @param imageBuffer 图片数据
+ * @param metadata 元数据
+ */
+async function saveImageWithMetadata(
+  imagePath: string,
+  imageBuffer: Buffer,
+  metadata: ImageMetadata
+): Promise<void> {
+  // 保存图片
+  await fs.writeFile(imagePath, imageBuffer);
+
+  // 保存元数据 JSON
+  const metadataPath = imagePath.replace('.png', '.json');
+  await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
+}
+
 // 配置文件上传
 const upload = multer();
+
+/**
+ * POST /webhook/api/generate-docx
+ * 根据翻译后的结构化数据生成 Word 文档
+ */
+router.post(
+  '/generate-docx',
+  asyncHandler(async (req: Request, res: Response) => {
+    const { slides, filename } = req.body;
+
+    logger.info('Generating Word document from items');
+
+    if (!slides || !Array.isArray(slides)) {
+      return res.status(400).json({
+        success: false,
+        error: 'slides array is required'
+      });
+    }
+
+    try {
+      const docxGenerator = new DocxGenerator();
+      const buffer = await docxGenerator.generateFromContent(slides);
+
+      const downloadName = filename || 'translated_document.docx';
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`);
+
+      res.send(buffer);
+      logger.success('Word document generated successfully');
+    } catch (error: any) {
+      logger.error('Word generation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  })
+);
 
 /**
  * POST /webhook/api/analyze-slide-for-image
@@ -66,6 +173,8 @@ router.post(
   })
 );
 
+
+
 /**
  * POST /webhook/api/generate-images
  * 生成图片
@@ -73,6 +182,7 @@ router.post(
 router.post(
   '/generate-images',
   asyncHandler(async (req: Request, res: Response) => {
+    const startTime = Date.now();
     const {
       jobId,
       slideId,
@@ -82,10 +192,11 @@ router.post(
       negativePrompt,
       width,
       height,
-      comfyuiBaseUrl
+      comfyuiBaseUrl,
+      isTextMode
     } = req.body;
 
-    logger.info('Generating image', { jobId, slideId, provider });
+    logger.info('Generating image', { jobId, slideId, provider, isTextMode });
 
     if (!jobId || slideId === undefined) {
       return res.status(400).json({
@@ -111,8 +222,16 @@ router.post(
       // 确保目录存在
       await fs.mkdir(generatedImagesDir, { recursive: true });
 
-      // 解析nanobanana响应数据(如果是NanoBanana)
-      if (provider === 'nanobanana' && nanobananaResponseData) {
+      // 统一转换为小写进行校验
+      const normalizedProvider = (provider || '').toLowerCase();
+
+      // 根据模式确定文件名前缀
+      const filePrefix = isTextMode ? 'image' : `slide_${slideId}`;
+      // 统一 provider 名称用于文件名
+      const providerName = normalizedProvider === 'nanobanana' ? 'gemini' : 'comfyui';
+
+      // NanoBanana图片生成 logic
+      if (normalizedProvider === 'nanobanana' && nanobananaResponseData) {
         try {
           const responseData = JSON.parse(nanobananaResponseData);
 
@@ -122,15 +241,33 @@ router.post(
               if (part.inlineData?.data) {
                 // Base64图片数据
                 const imageData = Buffer.from(part.inlineData.data, 'base64');
-                const imagePath = path.join(generatedImagesDir, `slide_${slideId}.png`);
 
-                await fs.writeFile(imagePath, imageData);
-                logger.success(`Image saved: ${imagePath}`);
+                // 获取下一个编号
+                const nextNumber = await getNextImageNumber(generatedImagesDir, filePrefix, providerName);
+                const fileName = `${filePrefix}_${providerName}_${nextNumber}.png`;
+                const imagePath = path.join(generatedImagesDir, fileName);
+
+                // 保存图片和元数据
+                const generationTime = (Date.now() - startTime) / 1000;
+                await saveImageWithMetadata(imagePath, imageData, {
+                  prompt: prompt || '',
+                  negativePrompt: negativePrompt || '',
+                  provider: providerName,
+                  width: width || 1024,
+                  height: height || 1024,
+                  generationTime,
+                  createdAt: new Date().toISOString()
+                });
+
+                logger.success(`Image saved: ${fileName} (${imageData.length} bytes)`);
 
                 return res.json({
                   success: true,
                   data: {
-                    fileSize: imageData.length
+                    imageUrl: `/webhook/servefiles/api/slides-data/${jobId}/generated_images/${fileName}`,
+                    fileName,
+                    fileSize: imageData.length,
+                    generationTime
                   }
                 });
               }
@@ -142,7 +279,7 @@ router.post(
       }
 
       // ComfyUI图片生成
-      if (provider === 'comfyui') {
+      if (normalizedProvider === 'comfyui') {
         logger.info('Generating image with ComfyUI', { slideId, prompt });
 
         try {
@@ -158,17 +295,32 @@ router.post(
             batchSize: 1
           });
 
-          // 保存图片
-          const outputPath = path.join(generatedImagesDir, `slide_${slideId}.png`);
-          await fs.writeFile(outputPath, imageBuffer);
+          // 获取下一个编号
+          const nextNumber = await getNextImageNumber(generatedImagesDir, filePrefix, providerName);
+          const fileName = `${filePrefix}_${providerName}_${nextNumber}.png`;
+          const outputPath = path.join(generatedImagesDir, fileName);
 
-          logger.success(`ComfyUI image generated: slide_${slideId}.png (${imageBuffer.length} bytes)`);
+          // 保存图片和元数据
+          const generationTime = (Date.now() - startTime) / 1000;
+          await saveImageWithMetadata(outputPath, imageBuffer, {
+            prompt: prompt || '',
+            negativePrompt: negativePrompt || '',
+            provider: providerName,
+            width: width || 1024,
+            height: height || 1024,
+            generationTime,
+            createdAt: new Date().toISOString()
+          });
+
+          logger.success(`ComfyUI image generated: ${fileName} (${imageBuffer.length} bytes)`);
 
           return res.json({
             success: true,
             data: {
-              imageUrl: `/webhook/servefiles/api/slides-data/${jobId}/generated_images/slide_${slideId}.png`,
-              fileSize: imageBuffer.length
+              imageUrl: `/webhook/servefiles/api/slides-data/${jobId}/generated_images/${fileName}`,
+              fileName,
+              fileSize: imageBuffer.length,
+              generationTime
             }
           });
         } catch (error: any) {
@@ -453,14 +605,21 @@ router.post(
         aiBaseUrl || job.metadata.aiBaseUrl
       );
 
-      // 读取之前保存的PPT内容
+      // 读取之前保存的内容 (兼容新旧命名)
       const jobDir = jobManager.getJobDir(jobId);
-      const pptContentPath = path.join(jobDir, 'ppt_content.json');
+      let contentPath = path.join(jobDir, 'doc_content.json');
+
+      try {
+        await fs.access(contentPath);
+      } catch {
+        // 回退到旧的命名约定
+        contentPath = path.join(jobDir, 'ppt_content.json');
+      }
 
       let pptContentData: any = { slides: [] };
       let contentSummary = '';
       try {
-        pptContentData = JSON.parse(await fs.readFile(pptContentPath, 'utf-8'));
+        pptContentData = JSON.parse(await fs.readFile(contentPath, 'utf-8'));
         const slides = pptContentData.slides || [];
 
         contentSummary = slides.map((slide: any) =>
@@ -471,10 +630,16 @@ router.post(
         contentSummary = job.metadata.originalFilename || '';
       }
 
-      // 解析占位符
+      // 解析占位符 (合并新传入的参数以覆盖旧设置)
+      const effectiveMetadata = {
+        ...job.metadata,
+        articleStyle: articleStyle || job.metadata.articleStyle,
+        articleType: articleType || job.metadata.articleType
+      };
+
       const parsedPrompt = await parseArticlePrompt(
         customPrompt || `请对以下文章进行修订或生成新文章:\n\n原始内容:\n{{CONTENT_SUMMARY}}\n\n要求: 风格{{WRITING_STYLE}}`,
-        job.metadata,
+        effectiveMetadata,
         pptContentData,
         existingArticle || ''
       );
@@ -486,18 +651,27 @@ router.post(
         parsedPrompt
       );
 
-      // 保存文章
+      // 保存文章 (统一保存路径为 article.txt)
       const articlePath = path.join(jobDir, 'article.txt');
       await fs.writeFile(articlePath, articleContent, 'utf-8');
 
-      const articleJson = {
+      // 更新 article.json
+      const articleJsonPath = path.join(jobDir, 'article.json');
+      const articleData = {
         article: {
           content: articleContent,
           word_count: articleContent.length,
           generation_time: new Date().toISOString()
+        },
+        metadata: {
+          style: articleStyle || job.metadata.articleStyle,
+          type: articleType || job.metadata.articleType,
+          provider: aiProvider || job.metadata.aiProvider
         }
       };
-      await fs.writeFile(path.join(jobDir, 'article.json'), JSON.stringify(articleJson, null, 2), 'utf-8');
+      await fs.writeFile(articleJsonPath, JSON.stringify(articleData, null, 2), 'utf-8');
+
+      logger.success(`Article regenerated and saved to ${articlePath}`);
 
       // 更新Job状态
       await jobManager.updateJob(jobId, {
@@ -509,7 +683,9 @@ router.post(
       logger.success(`Article regenerated for job ${jobId}`);
 
       res.json({
-        success: true
+        success: true,
+        message: 'Article regenerated successfully',
+        articlePath: `/download-file/${jobId}/article.txt`
       });
     } catch (error: any) {
       logger.error('Article regeneration failed:', error);

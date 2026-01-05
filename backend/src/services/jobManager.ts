@@ -242,7 +242,8 @@ export class JobManager {
       byType: {
         article: 0,
         video: 0,
-        image: 0
+        image: 0,
+        translation: 0
       }
     };
 
