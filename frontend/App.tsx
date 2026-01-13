@@ -848,11 +848,11 @@ const App: React.FC = () => {
 
                 // Extended feature descriptions with ~50 characters each
                 const features = [
-                  "AI技术精准翻译PPT内容，保持原文件的排版、字体和风格不变，无需手动调整格式",
-                  "自动为PPT生成专业演讲文稿，结合AI语音合成技术，快速生成高质量动态讲解视频",
-                  "将PPT内容转换为适合公众号、小红书、微博等平台的专业文章，节省内容创作时间",
-                  "批量统一PPT中所有文字的字体，支持自定义字体，确保文档风格一致，提升专业感",
-                  "基于PPT内容智能生成相关配图，支持多种AI模型，一键提升PPT视觉效果和专业度"
+                  "AI技术精准翻译文档内容，保持原文件的排版、字体和风格不变，无需手动调整格式",
+                  "自动为文档生成专业演讲文稿，结合AI语音合成技术，快速生成高质量动态讲解视频",
+                  "将文档内容转换为适合公众号、小红书、微博等平台的专业文章，节省内容创作时间",
+                  "批量统一文档中所有文字的字体，支持自定义字体，确保文档风格一致，提升专业感",
+                  "基于文档内容智能生成相关配图，支持多种AI模型，一键提升文档视觉效果和专业度"
                 ];
 
                 useEffect(() => {
@@ -1108,7 +1108,7 @@ const App: React.FC = () => {
                       const step1Msg = "正在准备上传数据...";
                       addLog(step1Msg);
                       setStatusMessage(step1Msg);
-                      setProcessingDetail("正在准备PPT文件和API配置...");
+                      setProcessingDetail("正在准备文件和API配置...");
                       setProgress(20);
                       await delay(1000);
 
@@ -1125,7 +1125,7 @@ const App: React.FC = () => {
                       formData.append('processingType', 'video');
 
                       // Step 2: Upload to n8n backend
-                      const step2Msg = "正在上传PPT文件到服务器...";
+                      const step2Msg = "正在上传文件到服务器...";
                       addLog(step2Msg);
                       setStatusMessage(step2Msg);
                       setProcessingDetail(`正在上传 ${file.name}...`);
@@ -1145,7 +1145,7 @@ const App: React.FC = () => {
                       const step2CompleteMsg = `上传成功，重定向URL: ${result.redirectUrl}`;
                       addLog(step2CompleteMsg);
                       setStatusMessage(step2CompleteMsg);
-                      setProcessingDetail("PPT文件上传成功，正在处理...");
+                      setProcessingDetail("文件上传成功，正在处理...");
                       setProgress(50);
                       await delay(1000);
 
@@ -1242,7 +1242,7 @@ const App: React.FC = () => {
                     const step1Msg = "正在准备上传数据...";
                     addLog(step1Msg);
                     setStatusMessage(step1Msg);
-                    setProcessingDetail("正在准备PPT文件和AI配置...");
+                    setProcessingDetail("正在准备文件和AI配置...");
                     setProgress(20);
                     await delay(1000);
 
@@ -1264,7 +1264,7 @@ const App: React.FC = () => {
                     formData.append('nanobananaModel', settings.imageSettings.nanobananaSettings.model);
 
                     // Step 2: Upload to n8n backend for image generation
-                    const step2Msg = "正在上传PPT文件到服务器...";
+                    const step2Msg = "正在上传文件到服务器...";
                     addLog(step2Msg);
                     setStatusMessage(step2Msg);
                     setProcessingDetail(`正在上传 ${file.name}...`);
@@ -1284,7 +1284,7 @@ const App: React.FC = () => {
                     const step2CompleteMsg = `上传成功，重定向URL: ${result.redirectUrl}`;
                     addLog(step2CompleteMsg);
                     setStatusMessage(step2CompleteMsg);
-                    setProcessingDetail("PPT文件上传成功，正在处理...");
+                    setProcessingDetail("文件上传成功，正在处理...");
                     setProgress(50);
                     await delay(1000); // Wait at least 1 second for this step
 
@@ -1341,7 +1341,7 @@ const App: React.FC = () => {
               <button
                 onClick={() => {
                   if (!file) {
-                    setError("请先选择一个PPTX文件");
+                    setError("请先选择一个文件");
                     return;
                   }
                   // Open article settings dialog instead of direct generation
