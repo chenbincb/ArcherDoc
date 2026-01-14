@@ -1,16 +1,15 @@
 import { useCallback } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useProcess } from '../contexts/ProcessContext';
-import { N8N_CONFIG } from '../constants';
+import { API_CONFIG } from '../constants';
 import { safeNavigate } from '../utils/navigationHelper';
 
-// Helper function
 const buildMediaUrl = (baseUrl: string, jobId: string, mediaType: string, fileName: string): string => {
     const cleanBaseUrl = baseUrl.replace(/\/$/, '');
     return `${cleanBaseUrl}/webhook/servefiles/api/slides-data/${jobId}/${mediaType}/${fileName}`;
 };
 
-export const useImageGeneration = () => {
+export const useVideoGeneration = () => {
     const { settings } = useSettings();
     const {
         setIsProcessing,
@@ -20,67 +19,60 @@ export const useImageGeneration = () => {
         addLog,
         clearLogs,
         setError,
-        setImageStats,
+        setVideoStats,
         setSlideImages,
         setSlideScripts
     } = useProcess();
 
-    const startImageGeneration = useCallback(async (file: File) => {
+    const startVideoGeneration = useCallback(async (file: File) => {
         if (!file) {
             setError("请先选择一个文件");
             return;
         }
 
-        // Start processing to generate slides for image generation
+        // Start processing
         setIsProcessing(true);
         setProgress(10);
         setStatusMessage("初始化中...");
         clearLogs();
-        addLog("启动AI配图引擎...");
+        addLog("启动视频生成引擎...");
         setError(null);
-        setImageStats(null);
-        setSlideImages([]);
+        setVideoStats(null);
 
-        let result: any;
         let jobId: string | null = null;
-
         try {
             const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+            await delay(1000);
 
-            // Step 1: Create FormData with PPT file and AI model settings
+            // Step 1: Create FormData with PPT file and API settings
             const step1Msg = "正在准备上传数据...";
             addLog(step1Msg);
             setStatusMessage(step1Msg);
-            setProcessingDetail("正在准备文件和AI配置...");
+            setProcessingDetail("正在准备文件和API配置...");
             setProgress(20);
             await delay(1000);
 
             const formData = new FormData();
-            formData.append('file', file);
-
-            // Add AI model configuration for content analysis
+            formData.append('auditorEmail', '');
+            formData.append('groupId', settings.videoSettings.minimaxGroupId);
+            formData.append('accessToken', settings.videoSettings.minimaxAccessToken);
+            formData.append('voiceId', settings.videoSettings.voiceId);
             formData.append('aiProvider', settings.activeProvider);
             formData.append('aiModel', settings.configs[settings.activeProvider].model);
             formData.append('aiApiKey', settings.configs[settings.activeProvider].apiKey);
             formData.append('aiBaseUrl', settings.configs[settings.activeProvider].baseUrl || '');
-            formData.append('processingType', 'image'); // 添加processingType参数
+            formData.append('pptFile0', file);
+            formData.append('processingType', 'video');
 
-            // Add image generation specific settings
-            formData.append('imageProvider', settings.imageSettings.defaultProvider);
-            formData.append('comfyuiBaseUrl', settings.imageSettings.comfyuiSettings.baseUrl);
-            formData.append('comfyuiModel', settings.imageSettings.comfyuiSettings.model);
-            formData.append('nanobananaApiKey', settings.imageSettings.nanobananaSettings.apiKey);
-            formData.append('nanobananaModel', settings.imageSettings.nanobananaSettings.model);
-
-            // Step 2: Upload to n8n backend for image generation
+            // Step 2: Upload to n8n backend
             const step2Msg = "正在上传文件到服务器...";
             addLog(step2Msg);
             setStatusMessage(step2Msg);
             setProcessingDetail(`正在上传 ${file.name}...`);
-            setProgress(40);
+            setProgress(30);
             await delay(1000);
 
-            const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-ppt`, {
                 method: 'POST',
                 body: formData
             });
@@ -89,33 +81,52 @@ export const useImageGeneration = () => {
                 throw new Error(`上传失败: ${response.statusText}`);
             }
 
-            result = await response.json();
+            const result = await response.json();
             const step2CompleteMsg = `上传成功，重定向URL: ${result.redirectUrl}`;
             addLog(step2CompleteMsg);
             setStatusMessage(step2CompleteMsg);
             setProcessingDetail("文件上传成功，正在处理...");
             setProgress(50);
-            await delay(1000); // Wait at least 1 second for this step
+            await delay(1000);
 
-            // Step 3: Extract jobId from redirectUrl
+            // Step 3: Extract jobId
             const urlParams = new URLSearchParams(new URL(result.redirectUrl).search);
             jobId = urlParams.get('jobId');
-
-            if (!jobId) {
-                throw new Error("无法从响应中提取Job ID");
-            }
+            if (!jobId) throw new Error("无法从响应中提取Job ID");
 
             const step3Msg = `提取到Job ID: ${jobId}`;
             addLog(step3Msg);
             setStatusMessage(step3Msg);
-            setProcessingDetail("正在初始化配图界面...");
+            setProcessingDetail("正在获取处理结果...");
+            setProgress(60);
+            await delay(1000);
+
+            // Step 4: Get job data
+            addLog("正在获取处理结果...");
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            const jobDataResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-job-data?jobId=${jobId}`);
+            if (!jobDataResponse.ok) throw new Error(`获取数据失败: ${jobDataResponse.statusText}`);
+            const jobData = await jobDataResponse.json();
+
+            const step4Msg = `获取到 ${jobData.notes.length} 张幻灯片的讲稿`;
+            addLog(step4Msg);
+            setStatusMessage(step4Msg);
+            setProcessingDetail("正在准备讲稿和幻灯片数据...");
             setProgress(80);
             await delay(1000);
 
-            const step4Msg = `图片生成准备完成，即将进入配图页面...`;
-            addLog(step4Msg);
-            setStatusMessage(step4Msg);
-            setProcessingDetail("所有数据准备就绪，即将进入配图页面...");
+            // Step 5: Set data
+            const images = jobData.slides.map((slide: string) =>
+                buildMediaUrl(API_CONFIG.BASE_URL, jobId!, 'images', slide)
+            );
+            setSlideImages(images);
+            const scripts = jobData.notes.map((note: any) => note.note);
+            setSlideScripts(scripts);
+
+            const step5Msg = "讲稿生成完成，准备进入审核页面...";
+            addLog(step5Msg);
+            setStatusMessage(step5Msg);
+            setProcessingDetail("所有数据准备就绪，即将进入审核页面...");
             setProgress(100);
             await delay(1000);
 
@@ -126,10 +137,9 @@ export const useImageGeneration = () => {
             setIsProcessing(false);
         } finally {
             setIsProcessing(false);
-            // Redirect to image review page with jobId
-            if (jobId) {
-                safeNavigate(`/?imageJobId=${jobId}`);
-            }
+            // Only navigate if we have a jobId and didn't error out completely?
+            // The original code navigated in finally if jobId exists
+            if (jobId) safeNavigate(`/?jobId=${jobId}`);
         }
     }, [
         settings,
@@ -140,9 +150,10 @@ export const useImageGeneration = () => {
         addLog,
         clearLogs,
         setError,
-        setImageStats,
-        setSlideImages
+        setVideoStats,
+        setSlideImages,
+        setSlideScripts
     ]);
 
-    return { startImageGeneration };
+    return { startVideoGeneration };
 };

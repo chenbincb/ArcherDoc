@@ -6,7 +6,7 @@ import ArticleSettingsModal, { ArticleSettings } from './components/ArticleSetti
 import FontSelectionModal from './components/FontSelectionModal';
 import VideoReviewPage from './pages/VideoReviewPage';
 import { AppSettings, AIProvider, TranslationStats, VideoResult, VideoGenerationStats, ArticleResult, ArticleGenerationStats, ImageGenerationStats, ImageResult } from './types';
-import { DEFAULT_SETTINGS, N8N_CONFIG } from './constants';
+import { DEFAULT_SETTINGS, API_CONFIG } from './constants';
 import { processPPTX, replaceGlobalFonts } from './services/pptxService';
 import { processDOCX } from './services/docxService';
 import { processTextFile } from './services/textService';
@@ -404,7 +404,7 @@ const App: React.FC = () => {
         formData.append('aiBaseUrl', settings.configs[settings.activeProvider].baseUrl || '');
         formData.append('processingType', 'translation'); // Use translation mode to only extract
 
-        const uploadRes = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+        const uploadRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-ppt`, {
           method: 'POST',
           body: formData
         });
@@ -417,7 +417,7 @@ const App: React.FC = () => {
         let extractedData = null;
         for (let i = 0; i < 60; i++) { // Max 5 mins
           await new Promise(r => setTimeout(r, 5000));
-          const statusRes = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-doc-content?jobId=${jobId}`);
+          const statusRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-doc-content?jobId=${jobId}`);
           if (statusRes.ok) {
             const res = await statusRes.json();
             extractedData = res.data;
@@ -517,7 +517,7 @@ const App: React.FC = () => {
         // Final step: Generate output file
         if (lowerName.endsWith('.pdf')) {
           addLog("正在生成带格式的 Word 文档...");
-          const generateRes = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-docx`, {
+          const generateRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-docx`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -755,8 +755,8 @@ const App: React.FC = () => {
             setProgress(30);
             await delay(1000); // Wait at least 1 second for this step
 
-            const n8nUrl = N8N_CONFIG.BASE_URL;
-            const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+            const n8nUrl = API_CONFIG.BASE_URL;
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-ppt`, {
               method: 'POST',
               body: formData
             });
@@ -793,7 +793,7 @@ const App: React.FC = () => {
             await new Promise(resolve => setTimeout(resolve, 10000));
 
             // Use the correct endpoint to get article data
-            const articleDataResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-article-data?jobId=${jobId}`);
+            const articleDataResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-article-data?jobId=${jobId}`);
 
             if (!articleDataResponse.ok) {
               throw new Error(`获取文章数据失败: ${articleDataResponse.statusText}`);
@@ -1132,7 +1132,7 @@ const App: React.FC = () => {
                       setProgress(30);
                       await delay(1000);
 
-                      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+                      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-ppt`, {
                         method: 'POST',
                         body: formData
                       });
@@ -1164,7 +1164,7 @@ const App: React.FC = () => {
                       // Step 4: Get job data
                       addLog("正在获取处理结果...");
                       await new Promise(resolve => setTimeout(resolve, 5000));
-                      const jobDataResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-job-data?jobId=${jobId}`);
+                      const jobDataResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-job-data?jobId=${jobId}`);
                       if (!jobDataResponse.ok) throw new Error(`获取数据失败: ${jobDataResponse.statusText}`);
                       const jobData = await jobDataResponse.json();
 
@@ -1177,7 +1177,7 @@ const App: React.FC = () => {
 
                       // Step 5: Set data
                       const images = jobData.slides.map((slide: string) =>
-                        buildMediaUrl(N8N_CONFIG.BASE_URL, jobId!, 'images', slide)
+                        buildMediaUrl(API_CONFIG.BASE_URL, jobId!, 'images', slide)
                       );
                       setSlideImages(images);
                       const scripts = jobData.notes.map((note: any) => note.note);
@@ -1271,7 +1271,7 @@ const App: React.FC = () => {
                     setProgress(40);
                     await delay(1000);
 
-                    const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+                    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-ppt`, {
                       method: 'POST',
                       body: formData
                     });

@@ -3,7 +3,7 @@ import { ImageGenerationSettings, ImageProvider, AppSettings, SlideImageData, Ge
 import { MagicTextDisplay } from '../components/MagicTextDisplay';
 import { SlidePreview } from '../components/SlidePreview';
 import { SceneTextPreview } from '../components/SceneTextPreview';
-import { DEFAULT_SETTINGS, N8N_CONFIG, API_ENDPOINTS } from '../constants';
+import { DEFAULT_SETTINGS, API_CONFIG, API_ENDPOINTS } from '../constants';
 import * as JSZip from 'jszip';
 
 /**
@@ -197,7 +197,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       setProcessingDetail('正在获取任务数据...');
       addLog('正在获取任务数据...');
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-job-data?jobId=${imageJobId}&type=image`);
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-job-data?jobId=${imageJobId}&type=image`);
 
       if (!response.ok) {
         throw new Error(`获取数据失败: ${response.statusText}`);
@@ -215,7 +215,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       let initialDescription = '基于文档内容或选划文字生成配图';
       if (isText) {
         try {
-          const docResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-doc-content?jobId=${imageJobId}`);
+          const docResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-doc-content?jobId=${imageJobId}`);
           if (docResponse.ok) {
             const docData = await docResponse.json();
             const content = docData.data?.content || docData.data?.slides?.[0]?.content || '';
@@ -253,8 +253,8 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
               generatedImage: latestVersion ? {
                 id: `persisted_${index}_${Date.now()}`,
                 slideId: itemNode.id || 1,
-                url: latestVersion.url.startsWith('http') ? latestVersion.url : `${N8N_CONFIG.BASE_URL}${latestVersion.url}`,
-                thumbnailUrl: latestVersion.url.startsWith('http') ? latestVersion.url : `${N8N_CONFIG.BASE_URL}${latestVersion.url}`,
+                url: latestVersion.url.startsWith('http') ? latestVersion.url : `${API_CONFIG.BASE_URL}${latestVersion.url}`,
+                thumbnailUrl: latestVersion.url.startsWith('http') ? latestVersion.url : `${API_CONFIG.BASE_URL}${latestVersion.url}`,
                 prompt: latestVersion.metadata.prompt,
                 negativePrompt: latestVersion.metadata.negativePrompt,
                 generationTime: latestVersion.metadata.generationTime,
@@ -290,7 +290,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
             const slideInfo = data.slides?.[index] || data.slides?.find((s: any) => s.id === (item.id || index + 1));
             const extension = slideInfo?.imageExtension || '.png';
             const slideFileName = `slide_${index}${extension}`; // 图片文件名从 0 开始
-            const imageUrl = buildMediaUrl(N8N_CONFIG.BASE_URL, imageJobId, 'images', slideFileName);
+            const imageUrl = buildMediaUrl(API_CONFIG.BASE_URL, imageJobId, 'images', slideFileName);
 
             const versions = slideInfo?.generatedImageVersions || [];
             const latestVersion = versions[0];
@@ -309,8 +309,8 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
               generatedImage: latestVersion ? {
                 id: `persisted_${index}_${Date.now()}`,
                 slideId: slideId,
-                url: latestVersion.url.startsWith('http') ? latestVersion.url : `${N8N_CONFIG.BASE_URL}${latestVersion.url}`,
-                thumbnailUrl: latestVersion.url.startsWith('http') ? latestVersion.url : `${N8N_CONFIG.BASE_URL}${latestVersion.url}`,
+                url: latestVersion.url.startsWith('http') ? latestVersion.url : `${API_CONFIG.BASE_URL}${latestVersion.url}`,
+                thumbnailUrl: latestVersion.url.startsWith('http') ? latestVersion.url : `${API_CONFIG.BASE_URL}${latestVersion.url}`,
                 prompt: latestVersion.metadata.prompt,
                 negativePrompt: latestVersion.metadata.negativePrompt,
                 generationTime: latestVersion.metadata.generationTime,
@@ -359,7 +359,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
         return;
       }
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/analyze-slide-for-image`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/analyze-slide-for-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -558,7 +558,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
         // 调用n8n保存响应数据
         setProcessingDetail('正在保存生成的图片到服务器...');
 
-        response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-images`, {
+        response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-images`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -577,7 +577,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
         });
       } else {
         // ComfyUI: 直接调用n8n工作流
-        response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-images`, {
+        response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-images`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -610,7 +610,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       const cacheBust = `?t=${timestamp}`;
       // 使用后端返回的特定文件名 URL，如果缺失则不显示
       const serverImageUrl = result.data?.imageUrl
-        ? (result.data.imageUrl.startsWith('http') ? result.data.imageUrl : `${N8N_CONFIG.BASE_URL}${result.data.imageUrl}`)
+        ? (result.data.imageUrl.startsWith('http') ? result.data.imageUrl : `${API_CONFIG.BASE_URL}${result.data.imageUrl}`)
         : '';
 
       if (!serverImageUrl) {
@@ -708,7 +708,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       addLog('正在使用AI优化提示词...');
 
       // 调用真实的提示词优化API
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/optimize-prompt`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/optimize-prompt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1044,7 +1044,7 @@ ${selectedInstruction}
     try {
       const absoluteUrl = image.url.startsWith('http') || image.url.startsWith('blob:')
         ? image.url
-        : `${N8N_CONFIG.BASE_URL}${image.url}`;
+        : `${API_CONFIG.BASE_URL}${image.url}`;
 
       const response = await fetch(absoluteUrl);
       const blob = await response.blob();
@@ -1088,7 +1088,7 @@ ${selectedInstruction}
         const image = generatedImages[i];
         const absoluteUrl = image.url.startsWith('http') || image.url.startsWith('blob:')
           ? image.url
-          : `${N8N_CONFIG.BASE_URL}${image.url}`;
+          : `${API_CONFIG.BASE_URL}${image.url}`;
 
         const response = await fetch(absoluteUrl);
         const blob = await response.blob();
@@ -1157,7 +1157,7 @@ ${selectedInstruction}
     if (slide.generatedImageVersions && slide.generatedImageVersions[versionIndex]) {
       const version = slide.generatedImageVersions[versionIndex];
       const updatedSlideData = [...slideDataList];
-      const absoluteUrl = version.url.startsWith('http') ? version.url : `${N8N_CONFIG.BASE_URL}${version.url}`;
+      const absoluteUrl = version.url.startsWith('http') ? version.url : `${API_CONFIG.BASE_URL}${version.url}`;
 
       updatedSlideData[slideIndex] = {
         ...slide,
@@ -1247,7 +1247,7 @@ ${selectedInstruction}
 
     const slideId = currentSlide + 1;
     // Build the URL for the AI-generated image
-    const aiImageUrl = `${N8N_CONFIG.BASE_URL}/webhook/servefiles/api/slides-data/${imageJobId}/generated_images/slide_${slideId}.png`;
+    const aiImageUrl = `${API_CONFIG.BASE_URL}/webhook/servefiles/api/slides-data/${imageJobId}/generated_images/slide_${slideId}.png`;
 
     const currentSlideData = slideDataList[currentSlide];
     if (currentSlideData) {
@@ -1377,7 +1377,7 @@ ${selectedInstruction}
               if (!baseImgUrl) return '';
               return baseImgUrl.startsWith('http') || baseImgUrl.startsWith('blob:')
                 ? baseImgUrl
-                : `${N8N_CONFIG.BASE_URL}${baseImgUrl}`;
+                : `${API_CONFIG.BASE_URL}${baseImgUrl}`;
             })()}
             originalImageUrl={isTextMode ? undefined : currentSlideData?.imageUrl}
             title={currentSlideData?.slideTitle}
@@ -1650,7 +1650,7 @@ ${selectedInstruction}
           <img
             src={fullscreenImage.url.startsWith('http') || fullscreenImage.url.startsWith('blob:')
               ? fullscreenImage.url
-              : `${N8N_CONFIG.BASE_URL}${fullscreenImage.url}`}
+              : `${API_CONFIG.BASE_URL}${fullscreenImage.url}`}
             alt="全屏图片预览"
             className="max-w-full max-h-full object-contain rounded-lg"
           />

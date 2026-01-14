@@ -152,9 +152,10 @@ export const POPULAR_LANGUAGES = [
   '阿拉伯语'
 ];
 
-// n8n配置
-export const N8N_CONFIG = {
-  BASE_URL: import.meta.env.DEV ? '' : 'http://ai.archeros.cn:4567',
+// 后端API配置
+export const API_CONFIG = {
+  // 优先使用环境变量，否则在开发模式下使用代理(空字符串)，生产模式下使用默认地址
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'http://ai.archeros.cn:4567'),
   API_PATH: '/webhook/api',
   WEBHOOK_PATH: '/webhook'
 };

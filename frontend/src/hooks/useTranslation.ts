@@ -5,7 +5,7 @@ import { processPPTX } from '../services/pptxService';
 import { processDOCX } from '../services/docxService';
 import { processTextFile } from '../services/textService';
 import { translateText } from '../services/aiService';
-import { N8N_CONFIG } from '../constants';
+import { API_CONFIG } from '../constants';
 import { AIProvider } from '../types';
 
 export const useTranslation = () => {
@@ -102,7 +102,7 @@ export const useTranslation = () => {
                 formData.append('aiBaseUrl', settings.configs[settings.activeProvider].baseUrl || '');
                 formData.append('processingType', 'translation'); // Use translation mode to only extract
 
-                const uploadRes = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+                const uploadRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-ppt`, {
                     method: 'POST',
                     body: formData
                 });
@@ -115,7 +115,7 @@ export const useTranslation = () => {
                 let extractedData = null;
                 for (let i = 0; i < 60; i++) { // Max 5 mins
                     await new Promise(r => setTimeout(r, 5000));
-                    const statusRes = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-doc-content?jobId=${jobId}`);
+                    const statusRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-doc-content?jobId=${jobId}`);
                     if (statusRes.ok) {
                         const res = await statusRes.json();
                         extractedData = res.data;
@@ -215,7 +215,7 @@ export const useTranslation = () => {
                 // Final step: Generate output file
                 if (lowerName.endsWith('.pdf')) {
                     addLog("正在生成带格式的 Word 文档...");
-                    const generateRes = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-docx`, {
+                    const generateRes = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-docx`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'

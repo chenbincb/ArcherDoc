@@ -9,7 +9,7 @@ import VideoReviewPage from './pages/VideoReviewPage';
 import ImageReviewPage from './pages/ImageReviewPage';
 import ArticleReviewPage from './pages/ArticleReviewPage';
 import { AppSettings, AIProvider, TranslationStats, VideoResult, VideoGenerationStats, ArticleResult, ArticleGenerationStats, ImageGenerationStats, ImageResult } from './types';
-import { DEFAULT_SETTINGS, N8N_CONFIG } from './constants';
+import { DEFAULT_SETTINGS, API_CONFIG } from './constants';
 import { processPPTX, replaceGlobalFonts } from './services/pptxService';
 
 /**
@@ -411,7 +411,7 @@ function MainAppComponent() {
       setProcessingDetail(`分析第1页内容...`);
       await delay(1000);
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-prompt`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-prompt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -450,7 +450,7 @@ function MainAppComponent() {
       formData.append('nanobananaApiKey', settings.imageSettings.nanobananaSettings.apiKey);
       formData.append('nanobananaModel', settings.imageSettings.nanobananaSettings.model);
 
-      const uploadResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+      const uploadResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-ppt`, {
         method: 'POST',
         body: formData
       });
@@ -464,7 +464,7 @@ function MainAppComponent() {
       await delay(3000);
 
       // Step 3: 生成图片
-      const generateResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-images`, {
+      const generateResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-images`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -524,7 +524,7 @@ function MainAppComponent() {
       setProcessingDetail('分析PPT结构和内容...');
       await delay(1000);
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-video`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-video`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -596,7 +596,7 @@ function MainAppComponent() {
       setProcessingDetail('分析PPT内容和主题...');
       await delay(1000);
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-article`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-article`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

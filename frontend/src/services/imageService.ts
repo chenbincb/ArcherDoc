@@ -6,7 +6,7 @@ import {
   ComfyUISettings,
   NanoBananaSettings
 } from '../types';
-import { N8N_CONFIG } from '../constants';
+import { API_CONFIG } from '../constants';
 
 /**
  * 图片生成服务类
@@ -53,7 +53,7 @@ export class ImageService {
     style: string;
   }> {
     try {
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/analyze-slide-for-image`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/analyze-slide-for-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ export class ImageService {
         nanobananaResponseData: JSON.stringify(geminiResult)
       };
 
-      const n8nResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-images`, {
+      const n8nResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-images`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -232,7 +232,7 @@ export class ImageService {
       }
 
       const n8nResult = await n8nResponse.json();
-      const baseUrl = 'http://178.109.129.11:5678';
+      const baseUrl = API_CONFIG.BASE_URL;
       const imageUrl = `${baseUrl}/webhook/servefiles/api/slides-data/${jobId}/generated_images/slide_${request.slideId}.png`;
 
       // 根据宽高比计算实际尺寸
@@ -263,7 +263,7 @@ export class ImageService {
    */
   static async optimizePrompt(originalPrompt: string, description: string, slideTitle: string): Promise<string> {
     try {
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/optimize-prompt`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/optimize-prompt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -302,7 +302,7 @@ export class ImageService {
         }))
       ));
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/replace-pptx-images`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/replace-pptx-images`, {
         method: 'POST',
         body: formData,
       });

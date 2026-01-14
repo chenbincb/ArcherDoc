@@ -3,7 +3,7 @@ import { MagicTextDisplay } from '../components/MagicTextDisplay';
 import { AppSettings } from '../types';
 import { promptTemplates } from '../utils/promptTemplates';
 import { marked } from 'marked';
-import { DEFAULT_SETTINGS, N8N_CONFIG, API_ENDPOINTS } from '../constants';
+import { DEFAULT_SETTINGS, API_CONFIG, API_ENDPOINTS } from '../constants';
 
 interface ArticleReviewPageProps {
   articleJobId: string;
@@ -86,7 +86,7 @@ const ArticleReviewPage: React.FC<ArticleReviewPageProps> = ({
       setProgress(20);
       addLog('正在获取文章数据...');
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-article-data?jobId=${articleJobId}`);
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-article-data?jobId=${articleJobId}`);
 
       if (!response.ok) {
         throw new Error(`获取文章数据失败: ${response.statusText}`);
@@ -160,18 +160,8 @@ const ArticleReviewPage: React.FC<ArticleReviewPageProps> = ({
       setProgress(10);
       addLog('正在生成新文章...');
 
-      // Get AI settings from localStorage
-      const savedSettings = localStorage.getItem('archerdoc-ai-settings-v1');
-      const settings = savedSettings ? JSON.parse(savedSettings) : {
-        activeProvider: 'vLLM',
-        configs: {
-          'vLLM': {
-            apiKey: 'EMPTY',
-            model: '/home/n8n/Qwen3-VL/Qwen3-VL-4B-Instruct',
-            baseUrl: 'http://178.109.129.11:8008/v1'
-          }
-        }
-      };
+      // Use current app settings
+      const settings = appSettings;
       const activeProvider = settings.activeProvider;
       const aiConfig = settings.configs[activeProvider];
 
@@ -185,7 +175,7 @@ const ArticleReviewPage: React.FC<ArticleReviewPageProps> = ({
       formData.append('aiApiKey', aiConfig.apiKey || '');
       formData.append('aiBaseUrl', aiConfig.baseUrl || '');
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.WEBHOOK_PATH}/regenerate-article`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.WEBHOOK_PATH}/regenerate-article`, {
         method: 'POST',
         body: formData
       });
@@ -222,18 +212,8 @@ const ArticleReviewPage: React.FC<ArticleReviewPageProps> = ({
       setProgress(10);
       addLog('正在微调文章...');
 
-      // Get AI settings from localStorage
-      const savedSettings = localStorage.getItem('archerdoc-ai-settings-v1');
-      const settings = savedSettings ? JSON.parse(savedSettings) : {
-        activeProvider: 'vLLM',
-        configs: {
-          'vLLM': {
-            apiKey: 'EMPTY',
-            model: '/home/n8n/Qwen3-VL/Qwen3-VL-4B-Instruct',
-            baseUrl: 'http://178.109.129.11:8008/v1'
-          }
-        }
-      };
+      // Use current app settings
+      const settings = appSettings;
       const activeProvider = settings.activeProvider;
       const aiConfig = settings.configs[activeProvider];
 
@@ -246,7 +226,7 @@ const ArticleReviewPage: React.FC<ArticleReviewPageProps> = ({
       formData.append('aiApiKey', aiConfig.apiKey || '');
       formData.append('aiBaseUrl', aiConfig.baseUrl || '');
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.WEBHOOK_PATH}/regenerate-article`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.WEBHOOK_PATH}/regenerate-article`, {
         method: 'POST',
         body: formData
       });
@@ -280,7 +260,7 @@ const ArticleReviewPage: React.FC<ArticleReviewPageProps> = ({
       addLog('正在保存文章...');
       setIsEditing(false);
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}${API_ENDPOINTS.SAVE_CONTENT}`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}${API_ENDPOINTS.SAVE_CONTENT}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -332,7 +312,7 @@ const ArticleReviewPage: React.FC<ArticleReviewPageProps> = ({
       addLog('正在导出文章...');
       setIsExporting(true);
 
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}${API_ENDPOINTS.EXPORT_CONTENT}`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}${API_ENDPOINTS.EXPORT_CONTENT}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -395,7 +375,7 @@ const ArticleReviewPage: React.FC<ArticleReviewPageProps> = ({
       }
 
       // 直接调用DownloadManager的webhook URL
-      const fullUrl = `${N8N_CONFIG.BASE_URL}${N8N_CONFIG.WEBHOOK_PATH}/download-file-webhook/api/download-file/${articleJobId}/${fileName}`;
+      const fullUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.WEBHOOK_PATH}/download-file-webhook/api/download-file/${articleJobId}/${fileName}`;
 
       const response = await fetch(fullUrl);
       if (!response.ok) {

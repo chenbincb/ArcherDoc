@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { VideoSettings, SpeechModelType, AppSettings } from '../types';
 import { MagicTextDisplay } from '../components/MagicTextDisplay';
 import { SlidePreview } from '../components/SlidePreview';
-import { DEFAULT_SETTINGS, N8N_CONFIG, API_ENDPOINTS } from '../constants';
+import { DEFAULT_SETTINGS, API_CONFIG, API_ENDPOINTS } from '../constants';
 import JSZip from 'jszip';
 
 /**
@@ -150,7 +150,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
 
     try {
       // Get job data from backend
-      const jobDataResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-job-data?jobId=${jobId}`);
+      const jobDataResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-job-data?jobId=${jobId}`);
 
       if (!jobDataResponse.ok) {
         throw new Error(`获取数据失败: ${jobDataResponse.statusText}`);
@@ -164,12 +164,12 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
         const timestamp = Date.now();
         const mappedData: SlideReviewData[] = jobData.slides.map((slide: any) => ({
           id: slide.slideId, // 1-based
-          imageUrl: buildMediaUrl(N8N_CONFIG.BASE_URL, jobId, 'images', `slide_${slide.index}.png`),
+          imageUrl: buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'images', `slide_${slide.index}.png`),
           script: slide.note || '',
           hasAudio: slide.resources?.audio?.exists || false,
           hasVideo: slide.resources?.video?.exists || false,
-          audioUrl: slide.resources?.audio?.exists ? buildMediaUrl(N8N_CONFIG.BASE_URL, jobId, 'audio', `slide_${slide.index}.mp3`, timestamp) : undefined,
-          videoUrl: slide.resources?.video?.exists ? buildMediaUrl(N8N_CONFIG.BASE_URL, jobId, 'video', `slide_${slide.index}.mp4`, timestamp) : undefined,
+          audioUrl: slide.resources?.audio?.exists ? buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'audio', `slide_${slide.index}.mp3`, timestamp) : undefined,
+          videoUrl: slide.resources?.video?.exists ? buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'video', `slide_${slide.index}.mp4`, timestamp) : undefined,
           isPlaying: false
         }));
 
@@ -184,7 +184,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
           const script = jobData.notes?.[i]?.note || '';
           initialData.push({
             id: i + 1,
-            imageUrl: buildMediaUrl(N8N_CONFIG.BASE_URL, jobId, 'images', `slide_${i}.png`),
+            imageUrl: buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'images', `slide_${i}.png`),
             script,
             hasAudio: false,
             hasVideo: false,
@@ -340,7 +340,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
     setIsGeneratingAudio(true);
 
     try {
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-single-audio`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-single-audio`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -373,7 +373,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
             return {
               ...item,
               hasAudio: true,
-              audioUrl: buildMediaUrl(N8N_CONFIG.BASE_URL, jobId, 'audio', `slide_${i}.mp3`, timestamp)
+              audioUrl: buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'audio', `slide_${i}.mp3`, timestamp)
             };
           }
           return item;
@@ -409,7 +409,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
     setIsGeneratingVideo(true);
 
     try {
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-video`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -433,7 +433,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
             return {
               ...item,
               hasVideo: true,
-              videoUrl: buildMediaUrl(N8N_CONFIG.BASE_URL, jobId, 'video', `slide_${i}.mp4`, timestamp)
+              videoUrl: buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'video', `slide_${i}.mp4`, timestamp)
             };
           }
           return item;
@@ -464,7 +464,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
         id: item.id - 1,
         note: item.script
       }));
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}${API_ENDPOINTS.SAVE_CONTENT}`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}${API_ENDPOINTS.SAVE_CONTENT}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -496,7 +496,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
         note: item.script
       }));
       setIsExporting(true);
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}${API_ENDPOINTS.EXPORT_CONTENT}`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}${API_ENDPOINTS.EXPORT_CONTENT}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -525,7 +525,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
     if (!exportData || !jobId) return;
     try {
       let fileName = exportData.contentType === 'article' ? `article.${format}` : `notes.${format}`;
-      const fullUrl = `${N8N_CONFIG.BASE_URL}${N8N_CONFIG.WEBHOOK_PATH}/download-file-webhook/api/download-file/${jobId}/${fileName}`;
+      const fullUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.WEBHOOK_PATH}/download-file-webhook/api/download-file/${jobId}/${fileName}`;
       const response = await fetch(fullUrl);
       if (!response.ok) throw new Error(`下载失败: ${response.statusText}`);
       const blob = await response.blob();
@@ -557,7 +557,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
       setIsMergingVideos(true);
       setMergeProgress(0);
       setMergedVideoUrl(null);
-      const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/generate-video`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, mode: 'final' })
@@ -566,7 +566,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
       const result = await response.json();
       if (result.success) {
         setMergeProgress(100);
-        const url = buildMediaUrl(N8N_CONFIG.BASE_URL, jobId, 'video', 'final_video.mp4', Date.now());
+        const url = buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'video', 'final_video.mp4', Date.now());
         setMergedVideoUrl(url);
         showNotification('视频合并成功', 'success');
       } else {
@@ -679,7 +679,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
                     setReviewData(prev => prev.map((item, i) =>
                       i === currentSlide ? {
                         ...item,
-                        videoUrl: buildMediaUrl(N8N_CONFIG.BASE_URL, jobId, 'video', `slide_${i}.mp4`, Date.now())
+                        videoUrl: buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'video', `slide_${i}.mp4`, Date.now())
                       } : item
                     ));
                     setShowVideoPreview(true);

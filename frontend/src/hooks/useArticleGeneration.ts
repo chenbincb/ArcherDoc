@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useProcess } from '../contexts/ProcessContext';
-import { N8N_CONFIG } from '../constants';
+import { API_CONFIG } from '../constants';
 import { safeNavigate } from '../utils/navigationHelper';
 import { ArticleSettings } from '../components/ArticleSettingsModal';
 
@@ -65,7 +65,7 @@ export const useArticleGeneration = () => {
             setProgress(30);
             await delay(1000); // Wait at least 1 second for this step
 
-            const response = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/upload-ppt`, {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-ppt`, {
                 method: 'POST',
                 body: formData
             });
@@ -102,7 +102,7 @@ export const useArticleGeneration = () => {
             await new Promise(resolve => setTimeout(resolve, 10000));
 
             // Use the correct endpoint to get article data
-            const articleDataResponse = await fetch(`${N8N_CONFIG.BASE_URL}${N8N_CONFIG.API_PATH}/get-article-data?jobId=${jobId}`);
+            const articleDataResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/get-article-data?jobId=${jobId}`);
 
             if (!articleDataResponse.ok) {
                 throw new Error(`获取文章数据失败: ${articleDataResponse.statusText}`);
