@@ -7,7 +7,10 @@ import { errorHandler, notFoundHandler } from './middleware/error.js';
 import { staticFileRewrite } from './middleware/staticRewrite.js';
 import uploadRouter from './routes/upload.js';
 import dataRouter from './routes/data.js';
-import generateRouter from './routes/generate.js';
+import docRouter from './routes/doc.js';
+import imageRouter from './routes/image.js';
+import videoRouter from './routes/video.js';
+import articleRouter from './routes/article.js';
 import mediaRouter from './routes/media.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -33,9 +36,12 @@ export const createApp = () => {
   // API路由
   app.use('/webhook/api', uploadRouter);
   app.use('/webhook/api', dataRouter);
-  app.use('/webhook/api', generateRouter);
+  app.use('/webhook/api', docRouter);
+  app.use('/webhook/api', imageRouter);
+  app.use('/webhook/api', videoRouter);
+  app.use('/webhook/api', articleRouter);
   app.use('/webhook/api', mediaRouter);
-  app.use('/webhook', generateRouter); // /webhook/regenerate-article
+  app.use('/webhook', articleRouter); // For /webhook/regenerate-article compatibility
 
   // ✅ 兼容前端硬编码的下载路径逻辑
   app.use('/webhook/download-file-webhook/api', mediaRouter);

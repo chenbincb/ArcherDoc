@@ -1,6 +1,9 @@
 
 import { AIProvider, AppSettings, SpeechModelType, VideoSettings, ImageProvider, ImageGenerationSettings } from './types';
 
+// The centralized host for all AI services (Ollama, vLLM, Coqui, ComfyUI)
+export const AI_SERVER_HOST = 'http://178.109.129.11';
+
 export const DEFAULT_PROVIDER_CONFIGS = {
   [AIProvider.GEMINI]: {
     apiKey: '',
@@ -15,12 +18,12 @@ export const DEFAULT_PROVIDER_CONFIGS = {
   [AIProvider.OLLAMA]: {
     apiKey: 'EMPTY',
     model: 'qwen3-vl:235b-cloud',
-    baseUrl: 'http://178.109.129.11:11434/v1'
+    baseUrl: `${AI_SERVER_HOST}:11434/v1`
   },
   [AIProvider.VLLM]: {
     apiKey: 'EMPTY',
     model: '/home/n8n/Qwen3-VL/Qwen3-VL-4B-Instruct',
-    baseUrl: 'http://178.109.129.11:8008/v1'
+    baseUrl: `${AI_SERVER_HOST}:8008/v1`
   }
 };
 
@@ -75,7 +78,7 @@ export const DEFAULT_VIDEO_SETTINGS: VideoSettings = {
 
   // Coqui TTS Settings
   coquiSettings: {
-    url: 'http://178.109.129.11:8001/generate',
+    url: `${AI_SERVER_HOST}:8001/generate`,
     speakerWav: 'default_speaker.wav',
     gpuThresholdGb: 4.0
   },
@@ -92,7 +95,7 @@ export const DEFAULT_VIDEO_SETTINGS: VideoSettings = {
 export const DEFAULT_IMAGE_SETTINGS: ImageGenerationSettings = {
   // ComfyUI settings
   comfyuiSettings: {
-    baseUrl: 'http://178.109.129.11:8188',
+    baseUrl: `${AI_SERVER_HOST}:8188`,
     model: 'z-image',
     workflowId: 'default',
     steps: 20,
