@@ -2,7 +2,7 @@
 import { AIProvider, AppSettings, SpeechModelType, VideoSettings, ImageProvider, ImageGenerationSettings } from './types';
 
 // The centralized host for all AI services (Ollama, vLLM, Coqui, ComfyUI)
-export const AI_SERVER_HOST = 'http://178.109.129.11';
+export const AI_SERVER_HOST = 'http://178.104.163.8';
 
 export const DEFAULT_PROVIDER_CONFIGS = {
   [AIProvider.GEMINI]: {

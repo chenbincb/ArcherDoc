@@ -1,4 +1,6 @@
 
+// --- Common Enums ---
+
 export enum AIProvider {
   GEMINI = 'Gemini',
   OPENROUTER = 'OpenRouter',
@@ -6,130 +8,15 @@ export enum AIProvider {
   VLLM = 'vLLM',
 }
 
-export interface ProviderConfig {
-  apiKey: string;
-  model: string;
-  baseUrl?: string;
-}
+export type JobType = 'article' | 'video' | 'image' | 'translation';
 
-export interface GlossaryItem {
-  term: string;
-  translation: string;
-}
+export type JobStatus = 'pending' | 'processing' | 'completed' | 'error';
 
-export interface AppSettings {
-  activeProvider: AIProvider;
-  targetLanguage: string;
-  // Store settings for each provider separately so they don't get mixed up
-  configs: Record<AIProvider, ProviderConfig>;
-  glossary: GlossaryItem[];
-
-  // Video Generation Settings
-  videoSettings: VideoSettings;
-
-  // Image Generation Settings
-  imageSettings: ImageGenerationSettings;
-}
-
-export interface ProcessStep {
-  id: string;
-  label: string;
-  status: 'pending' | 'processing' | 'completed' | 'error';
-  details?: string;
-}
-
-export interface TranslationStats {
-  originalChars: number;
-  translatedChars: number;
-  slidesProcessed: number;
-  totalSlides: number;
-}
-
-export interface SlideData {
-  id: string;
-  textMap: Map<string, string>; // Path/Index reference to original text
-}
-
-export interface ProgressCallback {
-  (current: number, total: number, status: string, detail?: string, currentStats?: TranslationStats): void;
-}
-
-// --- Video Generation Types ---
-
-// Speech Model Types
 export enum SpeechModelType {
   MINIMAX = 'minimax',
   COQUI_TTS = 'coqui_tts',
   QWEN_TTS = 'qwen_tts'
 }
-
-export interface CoquiTTSSettings {
-  url: string; // Coqui TTS Server URL
-  speakerWav: string; // Path to speaker reference audio file
-  gpuThresholdGb: number; // Minimum GPU memory required to use GPU
-}
-
-export interface QwenTTSSettings {
-  apiKey: string; // Qwen TTS API Key
-  model: string; // Qwen TTS model name
-  voiceId: string; // Qwen TTS voice ID
-}
-
-export interface VideoSettings {
-  // AI Settings
-  aiProvider: AIProvider;
-
-  // Speech Settings
-  speechModelType: SpeechModelType; // Default speech model to use
-  minimaxGroupId: string;
-  minimaxAccessToken: string;
-  voiceId: string;
-  speechRate: number;
-  autoPause: boolean;
-
-  // Coqui TTS Settings
-  coquiSettings: CoquiTTSSettings;
-
-  // Qwen TTS Settings
-  qwenApiKey: string;
-  qwenModel: string;
-  qwenVoiceId: string;
-}
-
-export interface SlideNote {
-  id: number;
-  note: string;
-  audioUrl?: string;
-  audioDuration?: number;
-}
-
-export interface SpeechVoice {
-  id: string;
-  name: string;
-  description: string;
-}
-
-export interface VideoGenerationStats {
-  slidesProcessed: number;
-  totalSlides: number;
-  originalChars: number;
-  translatedChars: number;
-  audioGenerated: number;
-  totalAudio: number;
-  videoDuration: number;
-}
-
-export interface VideoProgressCallback {
-  (current: number, total: number, status: string, detail?: string, currentStats?: VideoGenerationStats): void;
-}
-
-export interface VideoResult {
-  blob: Blob;
-  stats: VideoGenerationStats;
-  fileName: string;
-}
-
-// --- Article Generation Types ---
 
 export enum ArticleType {
   GENERAL = 'general',
@@ -138,82 +25,72 @@ export enum ArticleType {
   MARKETING = 'marketing'
 }
 
-export interface ArticleGenerationStats {
-  totalSlides: number;
-  slidesProcessed: number;
-  wordCount: number;
-  generationTime: number;
-}
-
-export interface ArticleResult {
-  blob?: Blob;
-  text?: string;
-  stats: ArticleGenerationStats;
-  fileName: string;
-}
-
-export interface ArticleData {
-  id: string;
-  title: string;
-  content: string;
-  type: ArticleType;
-  wordCount: number;
-  createdAt: string;
-}
-
-export interface ArticleSettings {
-  articleType: ArticleType;
-  customPrompt: string;
-  includeImages: boolean;
-  includeNotes: boolean;
-}
-
-// --- Image Generation Types ---
-
 export enum ImageProvider {
   COMFYUI = 'ComfyUI',
   NANO_BANANA = 'NanoBanana'
 }
 
-export interface ComfyUISettings {
-  baseUrl: string;
-  model: string;
-  workflowId: string;
-  steps: number;
-  cfgScale: number;
-  width: number;
-  height: number;
-  sampler: string;
-  scheduler: string;
+// --- Data Structures ---
+
+export interface JobData {
+  id: string;
+  type: JobType;
+  status: JobStatus;
+  progress: number;
+  createdAt: Date;
+  completedAt?: Date;
+  error?: string;
+  result?: any;
+  metadata: {
+    originalFilename: string;
+    processingType?: string;
+    articleType?: string;
+    articleStyle?: string;
+    customPrompt?: string;
+    aiProvider?: string;
+    aiModel?: string;
+    aiApiKey?: string;
+    aiBaseUrl?: string;
+    imageProvider?: string;
+    [key: string]: any;
+  };
 }
 
-export interface NanoBananaSettings {
-  // Google AI API Key (获取: https://ai.google.dev/api)
-  apiKey: string;
-  // Gemini模型: gemini-2.5-flash-image 或 gemini-2.0-flash-preview-image-generation
-  model: string;
-  // 图像质量: standard 或 hd
-  quality: 'standard' | 'hd';
-  // 图像宽高比: 根据Gemini API文档支持的所有宽高比
-  aspectRatio: '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9';
-  // 保持向后兼容性的字段
-  width: number;
-  height: number;
+export interface SlideNote {
+  id: number;
+  note?: string;           // Merged: optional to satisfy backend strictness, frontend needs check
+  title?: string;          // Backend specific
+  content?: string;        // Backend specific
+  description?: string;    // Backend specific
+  suggestedPrompt?: string;// Backend specific
+  userPrompt?: string;     // Backend specific
+  audioUrl?: string;       // Frontend specific
+  audioDuration?: number;  // Frontend specific
 }
 
-export interface ImageGenerationSettings {
-  // ComfyUI settings
-  comfyuiSettings: ComfyUISettings;
+export interface ArticleData {
+  id?: string;             // Frontend specific
+  title?: string;          // Frontend specific
+  content: string;         // Common
+  type?: ArticleType;      // Frontend specific
+  wordCount: number;       // Common
+  generationTime?: string | number; // Merged type
+  createdAt?: string;      // Frontend specific
+}
 
-  // Nano Banana settings
-  nanobananaSettings: NanoBananaSettings;
-
-  // Common settings
-  defaultProvider: ImageProvider;
-  autoRetry: boolean;
-  maxRetries: number;
-  negativePrompt: string;
-  imageFormat: 'png' | 'jpg';
+export interface GeneratedImage {
+  id: string;
+  slideId: number;
+  url: string;
+  thumbnailUrl: string;
+  prompt: string;
+  negativePrompt?: string;
+  generationTime: number;
+  provider: ImageProvider;
+  width: number;
+  height: number;
+  fileSize: number;
+  createdAt: string;
 }
 
 export interface ImageVersionMetadata {
@@ -247,19 +124,148 @@ export interface SlideImageData {
   generatedImageVersions?: ImageVersion[]; // 所有生成的图片版本
 }
 
-export interface GeneratedImage {
+export interface SlideData {
   id: string;
-  slideId: number;
+  textMap: Map<string, string>; // Path/Index reference to original text
+}
+
+// --- Settings Interfaces ---
+
+export interface ProviderConfig {
+  apiKey: string;
+  model: string;
+  baseUrl?: string;
+}
+
+export interface GlossaryItem {
+  term: string;
+  translation: string;
+}
+
+export interface CoquiTTSSettings {
   url: string;
-  thumbnailUrl: string;
-  prompt: string;
-  negativePrompt?: string;
-  generationTime: number;
-  provider: ImageProvider;
+  speakerWav: string;
+  gpuThresholdGb: number;
+}
+
+export interface QwenTTSSettings {
+  apiKey: string;
+  model: string;
+  voiceId: string;
+}
+
+export interface VideoSettings {
+  aiProvider: AIProvider;
+  speechModelType: SpeechModelType;
+  minimaxGroupId: string;
+  minimaxAccessToken: string;
+  voiceId: string;
+  speechRate: number;
+  autoPause: boolean;
+  coquiSettings: CoquiTTSSettings;
+  qwenApiKey: string;
+  qwenModel: string;
+  qwenVoiceId: string;
+}
+
+export interface ComfyUISettings {
+  baseUrl: string;
+  model: string;
+  workflowId: string;
+  steps: number;
+  cfgScale: number;
   width: number;
   height: number;
-  fileSize: number;
-  createdAt: string;
+  sampler: string;
+  scheduler: string;
+}
+
+export interface NanoBananaSettings {
+  apiKey: string;
+  model: string;
+  quality: 'standard' | 'hd';
+  aspectRatio: '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9';
+  width: number;
+  height: number;
+}
+
+export interface ImageGenerationSettings {
+  comfyuiSettings: ComfyUISettings;
+  nanobananaSettings: NanoBananaSettings;
+  defaultProvider: ImageProvider;
+  autoRetry: boolean;
+  maxRetries: number;
+  negativePrompt: string;
+  imageFormat: 'png' | 'jpg';
+}
+
+export interface AppSettings {
+  activeProvider: AIProvider;
+  targetLanguage: string;
+  configs: Record<AIProvider, ProviderConfig>;
+  glossary: GlossaryItem[];
+  videoSettings: VideoSettings;
+  imageSettings: ImageGenerationSettings;
+}
+
+export interface ArticleSettings {
+  articleType: ArticleType;
+  customPrompt: string;
+  includeImages: boolean;
+  includeNotes: boolean;
+}
+
+// --- API & Stats Types ---
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+export interface UploadRequestBody {
+  processingType: JobType;
+  articleType?: string;
+  articleStyle?: string;
+  customPrompt?: string;
+  aiProvider?: string;
+  aiModel?: string;
+  aiApiKey?: string;
+  aiBaseUrl?: string;
+  imageProvider?: string;
+  [key: string]: any;
+}
+
+export interface ProcessStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  details?: string;
+}
+
+export interface TranslationStats {
+  originalChars: number;
+  translatedChars: number;
+  slidesProcessed: number;
+  totalSlides: number;
+}
+
+export interface VideoGenerationStats {
+  slidesProcessed: number;
+  totalSlides: number;
+  originalChars: number;
+  translatedChars: number;
+  audioGenerated: number;
+  totalAudio: number;
+  videoDuration: number;
+}
+
+export interface ArticleGenerationStats {
+  totalSlides: number;
+  slidesProcessed: number;
+  wordCount: number;
+  generationTime: number;
 }
 
 export interface ImageGenerationStats {
@@ -270,6 +276,39 @@ export interface ImageGenerationStats {
   successRate: number;
   averageTime: number;
   fileSize: number;
+}
+
+// --- Callbacks & Results ---
+
+export interface ProgressCallback {
+  (current: number, total: number, status: string, detail?: string, currentStats?: TranslationStats): void;
+}
+
+export interface VideoProgressCallback {
+  (current: number, total: number, status: string, detail?: string, currentStats?: VideoGenerationStats): void;
+}
+
+export interface ImageProgressCallback {
+  (current: number, total: number, status: string, detail?: string, currentStats?: ImageGenerationStats): void;
+}
+
+export interface VideoResult {
+  blob: Blob;
+  stats: VideoGenerationStats;
+  fileName: string;
+}
+
+export interface ArticleResult {
+  blob?: Blob;
+  text?: string;
+  stats: ArticleGenerationStats;
+  fileName: string;
+}
+
+export interface ImageResult {
+  images: GeneratedImage[];
+  stats: ImageGenerationStats;
+  fileName: string;
 }
 
 export interface ImageGenerationRequest {
@@ -285,12 +324,8 @@ export interface ImageGenerationRequest {
   height: number;
 }
 
-export interface ImageProgressCallback {
-  (current: number, total: number, status: string, detail?: string, currentStats?: ImageGenerationStats): void;
-}
-
-export interface ImageResult {
-  images: GeneratedImage[];
-  stats: ImageGenerationStats;
-  fileName: string;
+export interface SpeechVoice {
+  id: string;
+  name: string;
+  description: string;
 }
