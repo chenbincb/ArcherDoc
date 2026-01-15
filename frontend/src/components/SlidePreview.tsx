@@ -153,19 +153,37 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
 
         {/* Toggle Buttons - Center */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex gap-2">
+          {/* Video Toggle Button - 视频/图片切换 */}
+          {showVideoToggle && onToggleVideo && (
+            <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-700">
+              <button
+                onClick={() => showVideoPreview && onToggleVideo()}
+                className={`text-xs px-3 py-1 rounded-md transition-all ${!showVideoPreview ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                📷 图片
+              </button>
+              <button
+                onClick={() => !showVideoPreview && onToggleVideo()}
+                className={`text-xs px-3 py-1 rounded-md transition-all ${showVideoPreview ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                🎬 视频
+              </button>
+            </div>
+          )}
+
           {isTextMode && (
             <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-700">
               <button
                 onClick={() => setShowTextReference(true)}
-                className={`text-xs px-3 py-1 rounded-md transition-all ${showTextReference ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+                className={`text-xs px-3 py-1 rounded-md transition-all ${showTextReference ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                原文参考
+                📄 原文参考
               </button>
               <button
                 onClick={() => setShowTextReference(false)}
-                className={`text-xs px-3 py-1 rounded-md transition-all ${!showTextReference ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+                className={`text-xs px-3 py-1 rounded-md transition-all ${!showTextReference ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                视觉配图
+                🎨 视觉配图
               </button>
             </div>
           )}
@@ -175,16 +193,16 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
             <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-700">
               <button
                 onClick={() => onToggleImage && showGeneratedImage && onToggleImage()}
-                className={`text-xs px-3 py-1 rounded-md transition-all ${!showGeneratedImage ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+                className={`text-xs px-3 py-1 rounded-md transition-all ${!showGeneratedImage ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                原图
+                🖼️ 原图
               </button>
               <button
                 onClick={() => onToggleImage && !showGeneratedImage && onToggleImage()}
                 disabled={!hasGeneratedImage}
-                className={`text-xs px-3 py-1 rounded-md transition-all ${showGeneratedImage ? 'bg-orange-500 text-white' : (hasGeneratedImage ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 cursor-not-allowed')}`}
+                className={`text-xs px-3 py-1 rounded-md transition-all ${showGeneratedImage ? 'bg-purple-500 text-white' : (hasGeneratedImage ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 cursor-not-allowed')}`}
               >
-                AI配图
+                ✨ AI配图
               </button>
             </div>
           )}
@@ -218,6 +236,16 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({
               <div className="italic text-gray-600">加载文档原文中...</div>
             )}
           </div>
+        ) : showVideoPreview && videoUrl ? (
+          <video
+            key={videoUrl}
+            src={videoUrl}
+            controls
+            autoPlay
+            playsInline
+            className="w-full max-h-[80vh] object-contain"
+            onError={() => console.error("Video failed to load:", videoUrl)}
+          />
         ) : imageUrl ? (
           <div className="relative group w-full overflow-y-auto flex items-center justify-center p-4 scrollbar-thin scrollbar-thumb-gray-700">
             <img

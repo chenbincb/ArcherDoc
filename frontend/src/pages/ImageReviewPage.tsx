@@ -102,6 +102,63 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
     setLocalImageSettings(appSettings.imageSettings);
   }, [appSettings]);
 
+  // 全屏模式下的键盘事件监听
+  useEffect(() => {
+    if (!showImageFullscreen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const versions = slideDataList[currentSlide]?.generatedImageVersions || [];
+      const currentVersionIndex = slideVersionIndexes[currentSlide] || 0;
+
+      if (e.key === 'Escape') {
+        setShowImageFullscreen(false);
+      } else if (e.key === 'ArrowLeft' && versions.length > 1) {
+        const newIndex = currentVersionIndex === 0 ? versions.length - 1 : currentVersionIndex - 1;
+        setSlideVersionIndexes(prev => ({ ...prev, [currentSlide]: newIndex }));
+        const newVersion = versions[newIndex];
+        if (newVersion) {
+          setFullscreenImage({
+            id: `version_${newIndex}`,
+            slideId: currentSlide + 1,
+            url: newVersion.url.startsWith('http') ? newVersion.url : `${API_CONFIG.BASE_URL}${newVersion.url}`,
+            thumbnailUrl: newVersion.url,
+            prompt: newVersion.metadata?.prompt || '',
+            negativePrompt: newVersion.metadata?.negativePrompt,
+            generationTime: newVersion.metadata?.generationTime || 0,
+            provider: newVersion.metadata?.provider as any,
+            width: newVersion.metadata?.width || 1024,
+            height: newVersion.metadata?.height || 1024,
+            fileSize: 0,
+            createdAt: newVersion.metadata?.createdAt || ''
+          });
+        }
+      } else if (e.key === 'ArrowRight' && versions.length > 1) {
+        const newIndex = currentVersionIndex >= versions.length - 1 ? 0 : currentVersionIndex + 1;
+        setSlideVersionIndexes(prev => ({ ...prev, [currentSlide]: newIndex }));
+        const newVersion = versions[newIndex];
+        if (newVersion) {
+          setFullscreenImage({
+            id: `version_${newIndex}`,
+            slideId: currentSlide + 1,
+            url: newVersion.url.startsWith('http') ? newVersion.url : `${API_CONFIG.BASE_URL}${newVersion.url}`,
+            thumbnailUrl: newVersion.url,
+            prompt: newVersion.metadata?.prompt || '',
+            negativePrompt: newVersion.metadata?.negativePrompt,
+            generationTime: newVersion.metadata?.generationTime || 0,
+            provider: newVersion.metadata?.provider as any,
+            width: newVersion.metadata?.width || 1024,
+            height: newVersion.metadata?.height || 1024,
+            fileSize: 0,
+            createdAt: newVersion.metadata?.createdAt || ''
+          });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showImageFullscreen, currentSlide, slideDataList, slideVersionIndexes]);
+
 
 
   // Handle settings save
@@ -164,30 +221,6 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
     }));
   };
 
-  // Set all slides to default display PPT image initially (Removed: Handled by fetchSlideData to respect AI image existence)
-  /*
-  useEffect(() => {
-    if (slideDataList.length > 0 && Object.keys(slideImageDisplayStates).length === 0) {
-      // Initialize all slides to show PPT image by default
-      const initialStates: Record<number, boolean> = {};
-      for (let i = 0; i < slideDataList.length; i++) {
-        initialStates[i] = false; // false means show PPT image
-      }
-      setSlideImageDisplayStates(initialStates);
-    }
-  }, [slideDataList.length]);
-  */
-
-  // Reset to show PPT image when switching slides (Removed: Preserve user's display preference)
-  /*
-  useEffect(() => {
-    // Whenever currentSlide changes, set current slide to show PPT image
-    setSlideImageDisplayStates(prev => ({
-      ...prev,
-      [currentSlide]: false // false means show PPT image
-    }));
-  }, [currentSlide]);
-  */
 
   // Fetch slide data from backend
   const fetchSlideData = async () => {
@@ -514,17 +547,74 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
 
         setProcessingDetail('Google Gemini API正在生成图片，请耐心等待（约15-30秒）...');
 
-        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${nanobananaSettings.model}:generateContent`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': nanobananaSettings.apiKey,
-          },
-          body: JSON.stringify(geminiRequest),
-        });
+        // ========== 调试代码开始 ==========
+        const requestUrl = `https://generativelanguage.googleapis.com/v1beta/models/${nanobananaSettings.model}:generateContent`;
+        const apiKeyPreview = nanobananaSettings.apiKey ? 
+          `${nanobananaSettings.apiKey.substring(0, 10)}...${nanobananaSettings.apiKey.substring(nanobananaSettings.apiKey.length - 4)}` : 
+          '(未设置)';
+        
+        console.log('=== NanoBanana 调试信息 ===');
+        console.log('请求时间:', new Date().toISOString());
+        console.log('API URL:', requestUrl);
+        console.log('API Key (预览):', apiKeyPreview);
+        console.log('Model:', nanobananaSettings.model);
+        console.log('Aspect Ratio:', nanobananaSettings.aspectRatio);
+        console.log('Quality:', nanobananaSettings.quality);
+        console.log('Prompt:', currentSlideData.userPrompt);
+        console.log('完整请求体:', JSON.stringify(geminiRequest, null, 2));
+        
+        // 添加超时控制 (2分钟)
+        const controller = new AbortController();
+        const timeoutMs = 120000; // 2分钟
+        const timeoutId = setTimeout(() => {
+          console.error(`=== 请求超时 (${timeoutMs / 1000}秒) ===`);
+          controller.abort();
+        }, timeoutMs);
+        
+        const fetchStartTime = Date.now();
+        console.log('开始发送请求...');
+        // ========== 调试代码结束 ==========
+
+        let geminiResponse: Response;
+        try {
+          geminiResponse = await fetch(requestUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': nanobananaSettings.apiKey,
+            },
+            body: JSON.stringify(geminiRequest),
+            signal: controller.signal,
+          });
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          const elapsed = (Date.now() - fetchStartTime) / 1000;
+          console.error('=== Fetch 错误详情 ===');
+          console.error('耗时:', elapsed.toFixed(2), '秒');
+          console.error('错误类型:', fetchError.name);
+          console.error('错误消息:', fetchError.message);
+          console.error('完整错误对象:', fetchError);
+          
+          if (fetchError.name === 'AbortError') {
+            throw new Error(`请求超时（${timeoutMs / 1000}秒），请检查网络连接或考虑使用代理`);
+          }
+          throw new Error(`网络请求失败: ${fetchError.message}。可能原因：1) 网络连接问题 2) 需要配置代理 3) API 地址被阻断`);
+        } finally {
+          clearTimeout(timeoutId);
+        }
+
+        // 调试：打印响应信息
+        const fetchEndTime = Date.now();
+        console.log('=== 响应信息 ===');
+        console.log('请求耗时:', ((fetchEndTime - fetchStartTime) / 1000).toFixed(2), '秒');
+        console.log('响应状态:', geminiResponse.status, geminiResponse.statusText);
+        console.log('响应头:', Object.fromEntries(geminiResponse.headers.entries()));
 
         if (!geminiResponse.ok) {
           const errorText = await geminiResponse.text();
+          console.error('=== API 错误响应 ===');
+          console.error('状态码:', geminiResponse.status);
+          console.error('错误内容:', errorText);
           throw new Error(`Google Gemini API调用失败: ${geminiResponse.statusText} - ${errorText}`);
         }
 
@@ -748,37 +838,86 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
     }
   };
 
-  // Generate smart prompt for current slide
+  // Generate smart prompt for current slide (调用后端 API)
   const generateSmartPromptForCurrentSlide = async () => {
     try {
       setIsGeneratingPrompt(true);
       const currentSlideData = slideDataList[currentSlide];
       if (!currentSlideData) return;
 
-      const description = isTextMode && selectedText ?
-        `用户划选的原文片段: ${selectedText}` :
-        (currentSlideData.description || documentContent || '');
+      const slideContent = isTextMode && selectedText
+        ? `用户划选的原文片段: ${selectedText}`
+        : (currentSlideData.slideContent || currentSlideData.description || documentContent || '');
 
       setProcessingDetail(isTextMode && selectedText ? '正在基于划选文字生成提示词...' : '正在生成智能提示词...');
       addLog(isTextMode && selectedText ? '正在基于划选文字生成智能提示词...' : '正在使用AI生成智能提示词...');
 
-      const enhancedPrompt = await generateSmartPrompt(
-        description,
-        imageGenParams.imageStyle,
-        imageGenParams.contentType,
-        currentSlideData.slideTitle
-      );
+      // 获取用户的 AI 配置
+      const activeProvider = appSettings.activeProvider;
+      const aiConfig = appSettings.configs[activeProvider];
 
-      // Update the current slide's userPrompt with the AI-generated prompt
-      const updatedSlideData = [...slideDataList];
-      updatedSlideData[currentSlide] = {
-        ...currentSlideData,
-        userPrompt: enhancedPrompt
-      };
-      setSlideDataList(updatedSlideData);
+      // 调用后端 API 生成提示词
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/analyze-slide-for-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slideId: currentSlideData.id,
+          slideTitle: currentSlideData.slideTitle || '',
+          slideContent: slideContent,
+          provider: localImageSettings.defaultProvider,
+          imageStyle: imageGenParams.imageStyle,
+          contentType: imageGenParams.contentType,
+          // 传递 AI 配置
+          aiProvider: activeProvider,
+          aiApiKey: aiConfig?.apiKey,
+          aiModel: aiConfig?.model,
+          aiBaseUrl: aiConfig?.baseUrl
+        }),
+      });
 
-      showNotification('智能提示词生成完成', 'success');
-      addLog(`第 ${currentSlide + 1} 页智能提示词生成完成`);
+      if (!response.ok) {
+        throw new Error(`生成失败: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data?.suggestedPrompt) {
+        const enhancedPrompt = result.data.suggestedPrompt;
+
+        // Update the current slide's userPrompt with the AI-generated prompt
+        const updatedSlideData = [...slideDataList];
+        updatedSlideData[currentSlide] = {
+          ...currentSlideData,
+          userPrompt: enhancedPrompt,
+          suggestedPrompt: enhancedPrompt
+        };
+        setSlideDataList(updatedSlideData);
+
+        // 保存提示词到服务器（持久化）
+        try {
+          await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/save-slide-prompt`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              jobId: imageJobId,
+              slideId: currentSlideData.id,
+              prompt: enhancedPrompt
+            }),
+          });
+          addLog(`提示词已保存到服务器`);
+        } catch (saveErr) {
+          console.warn('保存提示词失败:', saveErr);
+        }
+
+        showNotification('智能提示词生成完成', 'success');
+        addLog(`第 ${currentSlide + 1} 页智能提示词生成完成`);
+      } else {
+        throw new Error(result.message || '生成失败');
+      }
     } catch (err: any) {
       console.error('生成智能提示词失败:', err);
       showNotification(err.message || '生成智能提示词失败', 'error');
@@ -787,257 +926,6 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
     }
   };
 
-  // Generate smart prompt using AI
-  const generateSmartPrompt = async (
-    description: string,
-    imageStyle: string,
-    contentType: string,
-    slideTitle: string
-  ): Promise<string> => {
-    // Get user's AI model configuration
-    const activeProvider = appSettings.activeProvider;
-    const aiConfig = appSettings.configs[activeProvider];
-
-    console.log('=== 开始AI生成提示词 ===');
-    console.log('AI Provider:', activeProvider);
-    console.log('AI Config:', aiConfig);
-
-    // 【终极重构】不同内容类型的专属构图指令库
-    // 结合了：私有云背景、严格的视角锁定、具体的IT隐喻
-    const typeInstructions: Record<string, string> = {
-      '逻辑架构图': `
-【强制构图：逻辑架构 (Logical Architecture)】
-1. **核心视角**：**2.5D等轴测 (Isometric View)**。
-2. **布局隐喻**：**模块化堆叠 (Modular Stacking)**。
-   - 就像搭建精密的主板或城市建筑。
-   - **底部**：IaaS层（服务器机柜、存储阵列）。
-   - **中间**：PaaS层（六边形服务模块、API网关）。
-   - **顶部**：SaaS层（悬浮的应用窗口、用户终端）。
-3. **逻辑表现**：用半透明的玻璃层板区分不同层级，模块之间要有垂直的连接线。
-4. **🚫 禁止**：禁止画成平面的流程图，禁止画成球体。`,
-
-      '业务流程图': `
-【强制构图：业务流程 (Business Process)】
-1. **核心视角**：**2D 扁平化 (Flat Vector)** 或 **微倾斜视角**。
-2. **布局隐喻**：**工业流水线 (Pipeline)** 或 **泳道图 (Swimlane)**。
-   - **布局方向**：严格的**从左到右 (Left-to-Right)**。
-   - **左侧**：输入源（文件图标、原始数据块）。
-   - **中间**：处理引擎（齿轮、漏斗、芯片）。
-   - **右侧**：输出物（报表、成品图标）。
-3. **逻辑表现**：必须有明显的**指引箭头 (Directional Arrows)** 连接各环节。
-4. **🚫 禁止**：禁止画成循环的圆圈，禁止画成复杂的3D建筑。`,
-
-      '网络拓扑图': `
-【强制构图：网络拓扑 (Network Topology)】
-1. **核心视角**：**广角俯视 (Top-down Wide Angle)**。
-2. **布局隐喻**：**星系分布 (Constellation)** 或 **城市交通网**。
-   - **中心**：核心数据中心（大型主机图标）。
-   - **周边**：边缘节点、终端设备、云资源池。
-3. **逻辑表现**：强调**连接线 (Connectivity)**，用发光的线条连接分散的节点。
-4. **🚫 禁止**：禁止画成单一的物体，必须是分散的、多节点的。`,
-
-      '数据可视化': `
-【强制构图：数据可视化 (Data Visualization)】
-1. **核心视角**：**正视 UI 界面 (Front-facing UI)**。
-2. **布局隐喻**：**管理驾驶舱 (Management Dashboard)**。
-   - 画面主体必须是一个**高保真的屏幕界面 (Screen Mockup)**。
-   - 包含：动态折线图、环形占比图、关键指标卡片(KPI Cards)。
-3. **逻辑表现**：通过图表的高低起伏体现数据的变化趋势。
-4. **🚫 禁止**：禁止画实物场景，必须是屏幕上的软件界面。`,
-
-      '产品路线图': `
-【强制构图：产品路线图 (Roadmap)】
-1. **核心视角**：**2D 水平展开 (Horizontal)**。
-2. **布局隐喻**：**时间轴 (Timeline) 或 甘特图**。
-   - 一条清晰的主轴线贯穿画面左右。
-   - 轴线上分布着里程碑节点 (Milestones) 和旗帜标记。
-3. **逻辑表现**：用颜色的深浅或节点的点亮状态表示"已完成"和"规划中"。
-4. **🚫 禁止**：禁止画成复杂的网络结构。`,
-
-      '功能功能对比图': `
-【强制构图：对比分析 (Comparison)】
-1. **核心视角**：**分屏对比 (Split Screen)**。
-2. **布局隐喻**：**天平 (Scale)** 或 **镜像 (Mirror)**。
-   - 画面被垂直分割为左右两部分。
-   - **左侧**：传统模式（灰暗、复杂、杂乱）。
-   - **右侧**：新产品模式（明亮、整洁、高效）。
-3. **逻辑表现**：通过强烈的视觉反差（颜色、繁简）来突显产品优势。`,
-
-      '封面/通用页': `
-【强制构图：封面/通用 (Cover/General)】
-1. **核心视角**：**正视平面设计 (Flat Graphic Design)**。
-2. **布局隐喻**：**极简主义海报 (Minimalist Poster)**。
-   - **背景**：深色科技感渐变、抽象几何线条、品牌色光影。
-   - **主体**：留白为主，**中心区域**预留给标题文字（AI生成空白文本框）。
-3. **逻辑表现**：不展示具体技术细节，只传达"大气、专业、信赖"的品牌调性。
-4. **🚫 禁止**：禁止画具体的服务器、架构图或流程图！`,
-
-      '自动识别': `
-【智能判断模式】
-请先阅读PPT内容，分析其最核心的逻辑，然后**必须**从上述5种模式中选择一种最匹配的：
-- 讲架构/层级 -> 选"逻辑架构图"
-- 讲流程/步骤 -> 选"业务流程图"
-- 讲节点/连接 -> 选"网络拓扑图"
-- 讲数据/监控 -> 选"数据可视化"
-- 讲规划/时间 -> 选"产品路线图"
-- 封面/目录/纯文字 -> 选"封面/通用页"`
-    };
-
-    // 获取当前类型的专属指令，如果没有匹配则默认使用自动识别
-    const selectedInstruction = typeInstructions[contentType] || typeInstructions['自动识别'];
-
-    // 构建结构化提示词（借鉴 Banana Slides 的 XML 标签风格）
-    const aiPrompt = `你是一位专注【私有云/B端软件产品】的资深视觉设计师。
-你的任务是将PPT文字转化为**功能性、结构化、符合行业标准的图解**。
-
-<slide_content>
-<title>${slideTitle}</title>
-<content>${description}</content>
-</slide_content>
-
-<business_context>
-<industry>请根据文档内容自动识别所属行业领域</industry>
-<purpose>专业文档配图</purpose>
-<style>${imageStyle} (保持专业、干净、高信噪比)</style>
-</business_context>
-
-<task>
-【步骤 1：判断页面性质与内容理解】
-请先判断这张PPT的性质（是封面？目录？还是正文？）。
-- **如果是封面/目录/过渡页**：请侧重描述**视觉氛围**和**品牌调性**。严禁脑补具体的技术架构细节！不要因为标题里有关键词就去画复杂的架构图，这只是一张封面，需要的是大气、简约的背景。
-- **如果是正文内容页**：请像分析师一样拆解逻辑，识别技术实体（组件）、逻辑行为（关系）和核心诉求（价值）。
-
-【步骤 2：智能分类】
-${selectedInstruction}
-
-【步骤 3：生成结构化提示词】
-基于你的深度理解，进行视觉建模，严格执行以下要求。
-</task>
-
-<design_guidelines>
-<composition_principles>
-- 根据内容自动设计最完美的构图
-- 重点突出核心概念，避免信息过载
-- 使用装饰性元素填补空白，保持画面平衡
-- 避免过度拥挤或过度留白
-</composition_principles>
-
-<visual_translation_strategy>
-- （仅针对正文页）不能只画通用的方块，必须根据文档实际内容提取关键概念，并转化为与之匹配的具象化视觉元素
-- （如果是封面页）保持背景的简洁与留白
-</visual_translation_strategy>
-
-<text_rendering_rules>
-【核心原则】
-- 如需渲染文字，不重不漏地包含所有关键信息
-- 保持原文的逻辑层次和重点强调
-
-【格式规范】
-- 禁止使用markdown格式符号（如 # * - 等）
-- 标题使用字号和粗细区分，不添加符号
-- 列表项使用缩进组织，不添加项目符号
-
-【内容限制】
-- 保留技术缩写的英文形式（API、CPU、Cloud、DB、SaaS、PaaS、IaaS等）
-- 其他标签和说明文字使用中文
-- 如果无法保证汉字清晰，生成空白文本框，不要生成乱码英文
-
-【质量标准】
-- 视觉重心突出，主体明确
-- 元素分布均衡，有呼吸感
-- 引导线清晰，逻辑流畅
-- 符合阅读习惯（从左到右，从上到下）
-- 专业商务PPT风格，简洁现代
-</text_rendering_rules>
-</design_guidelines>
-
-<output_format>
-以下5个模块供参考，请根据内容选择适合的模块输出（不必全部填写，只输出有意义的部分）：
-
-1. **[场景构图]**：(如果是封面，描述大气背景和留白；如果是正文，描述视角和布局)
-2. **[核心元素]**：描述画面中的主体视觉元素
-3. **[逻辑交互]**：如有需要，描述元素之间的关系和连接
-4. **[文本标签]**：如有需要，指定中文标签内容
-5. **[视觉风格]**：${imageStyle}相关的风格描述
-
-请直接输出画面描述。
-</output_format>`;
-
-    try {
-      console.log('准备调用AI模型:', aiConfig?.model);
-      console.log('API地址:', aiConfig?.baseUrl);
-
-      // Call AI model directly
-      // 确保baseUrl没有重复的/v1路径
-      let apiUrl = aiConfig.baseUrl;
-      if (apiUrl.endsWith('/v1')) {
-        apiUrl = apiUrl.slice(0, -3); // 移除末尾的/v1
-      }
-      const fullUrl = `${apiUrl}/v1/chat/completions`;
-
-      console.log('最终API URL:', fullUrl);
-
-      const response = await fetch(fullUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${aiConfig.apiKey}`
-        },
-        body: JSON.stringify({
-          model: aiConfig.model,
-          messages: [
-            {
-              role: 'user',
-              content: aiPrompt
-            }
-          ],
-          max_tokens: 500,
-          temperature: 0.7
-        })
-      });
-
-      console.log('AI响应状态:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('AI调用失败:', errorText);
-        throw new Error(`AI调用失败: ${response.statusText} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('AI响应结果:', result);
-
-      const aiGeneratedPrompt = result.choices?.[0]?.message?.content?.trim();
-
-      if (aiGeneratedPrompt && aiGeneratedPrompt.length > 10) {
-        console.log('✅ AI生成的提示词:', aiGeneratedPrompt);
-        return aiGeneratedPrompt;
-      } else {
-        console.log('⚠️ AI返回的提示词太短，使用备用方案');
-        // Fallback to template-based prompt
-        return generateTemplatePrompt(description, imageStyle, slideTitle);
-      }
-    } catch (error) {
-      console.error('❌ AI调用失败，使用模板生成:', error);
-      // Fallback to template-based prompt
-      return generateTemplatePrompt(description, imageStyle, slideTitle);
-    }
-  };
-
-  // Generate template-based prompt as fallback
-  const generateTemplatePrompt = (
-    description: string,
-    imageStyle: string,
-    slideTitle: string
-  ): string => {
-    const basePrompt = description || `关于 ${slideTitle} 的逻辑图表`;
-
-    // 结构化信息图表模板
-    const templatePrompt = `${basePrompt}, ${imageStyle}风格, 结构化信息图表, 专业产品文档插图, 扁平化设计, 几何构图, 清晰的逻辑线条, 商务色调, 适合PPT展示, 无文字标签`;
-
-    console.log('🔄 使用备用模板生成的提示词:', templatePrompt);
-    return templatePrompt;
-  };
 
   // Download single image
   const downloadImage = async (image: GeneratedImage) => {
@@ -1239,76 +1127,6 @@ ${selectedInstruction}
     };
   }, [showGlobalLoading, currentProcessingSlide, slideDataList]);
 
-  // Check if AI-generated images exist on server when slide data loads or changes
-  // Removed: Redundant and harmful useEffect that was overwriting correctly fetched generatedImage data
-  /*
-  useEffect(() => {
-    if (slideDataList.length === 0 || isLoading) return;
-
-    const slideId = currentSlide + 1;
-    // Build the URL for the AI-generated image
-    const aiImageUrl = `${API_CONFIG.BASE_URL}/webhook/servefiles/api/slides-data/${imageJobId}/generated_images/slide_${slideId}.png`;
-
-    const currentSlideData = slideDataList[currentSlide];
-    if (currentSlideData) {
-      checkImageExists(
-        aiImageUrl,
-        () => {
-          // Image exists, update slideDataList with generated image info
-          const updatedSlideData = [...slideDataList];
-          // Only update if generatedImage doesn't exist yet
-          if (!updatedSlideData[currentSlide].generatedImage) {
-            updatedSlideData[currentSlide] = {
-              ...currentSlideData,
-              generatedImage: {
-                id: `server_${Date.now()}`,
-                slideId: slideId,
-                url: aiImageUrl,
-                thumbnailUrl: aiImageUrl,
-                prompt: currentSlideData.userPrompt,
-                negativePrompt: currentSlideData.negativePrompt,
-                generationTime: 0, // Server-generated images don't have this info in our implementation
-                provider: 'server',
-                width: localImageSettings.comfyuiSettings.width,
-                height: localImageSettings.comfyuiSettings.height,
-                fileSize: 0,
-                createdAt: new Date().toISOString()
-              },
-              generationStatus: 'completed'
-            };
-            setSlideDataList(updatedSlideData);
-          }
-          // Ensure display state is set to show PPT image by default
-          if (slideImageDisplayStates[currentSlide] === undefined) {
-            setSlideImageDisplayStates(prev => ({
-              ...prev,
-              [currentSlide]: false // false means show PPT image
-            }));
-          }
-        },
-        () => {
-          // Image doesn't exist, ensure generatedImage is undefined
-          const updatedSlideData = [...slideDataList];
-          if (updatedSlideData[currentSlide].generatedImage) {
-            updatedSlideData[currentSlide] = {
-              ...currentSlideData,
-              generatedImage: undefined,
-              generationStatus: 'pending'
-            };
-            setSlideDataList(updatedSlideData);
-          }
-          // Ensure display state is set to show PPT image by default
-          if (slideImageDisplayStates[currentSlide] === undefined) {
-            setSlideImageDisplayStates(prev => ({
-              ...prev,
-              [currentSlide]: false // false means show PPT image
-            }));
-          }
-        }
-      );
-    }
-  }, [currentSlide, slideDataList.length, imageJobId, isLoading]);
-  */
 
   if (isLoading) {
     return (
@@ -1643,10 +1461,85 @@ ${selectedInstruction}
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
           <button
             onClick={() => setShowImageFullscreen(false)}
-            className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-sm rounded-lg hover:bg-white/30"
+            className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-sm rounded-lg hover:bg-white/30 z-10"
           >
             ✕
           </button>
+          
+          {/* 左右切换按钮 - 仅当有多个版本时显示 */}
+          {(() => {
+            const versions = slideDataList[currentSlide]?.generatedImageVersions || [];
+            const currentVersionIndex = slideVersionIndexes[currentSlide] || 0;
+            
+            if (versions.length > 1) {
+              return (
+                <>
+                  {/* 左箭头 */}
+                  <button
+                    onClick={() => {
+                      const newIndex = currentVersionIndex === 0 ? versions.length - 1 : currentVersionIndex - 1;
+                      setSlideVersionIndexes(prev => ({ ...prev, [currentSlide]: newIndex }));
+                      // 更新全屏显示的图片
+                      const newVersion = versions[newIndex];
+                      if (newVersion) {
+                        setFullscreenImage({
+                          id: `version_${newIndex}`,
+                          slideId: currentSlide + 1,
+                          url: newVersion.url.startsWith('http') ? newVersion.url : `${API_CONFIG.BASE_URL}${newVersion.url}`,
+                          thumbnailUrl: newVersion.url,
+                          prompt: newVersion.metadata?.prompt || '',
+                          negativePrompt: newVersion.metadata?.negativePrompt,
+                          generationTime: newVersion.metadata?.generationTime || 0,
+                          provider: newVersion.metadata?.provider as any,
+                          width: newVersion.metadata?.width || 1024,
+                          height: newVersion.metadata?.height || 1024,
+                          fileSize: 0,
+                          createdAt: newVersion.metadata?.createdAt || ''
+                        });
+                      }
+                    }}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white text-2xl transition-all z-10"
+                  >
+                    ‹
+                  </button>
+                  {/* 右箭头 */}
+                  <button
+                    onClick={() => {
+                      const newIndex = currentVersionIndex >= versions.length - 1 ? 0 : currentVersionIndex + 1;
+                      setSlideVersionIndexes(prev => ({ ...prev, [currentSlide]: newIndex }));
+                      // 更新全屏显示的图片
+                      const newVersion = versions[newIndex];
+                      if (newVersion) {
+                        setFullscreenImage({
+                          id: `version_${newIndex}`,
+                          slideId: currentSlide + 1,
+                          url: newVersion.url.startsWith('http') ? newVersion.url : `${API_CONFIG.BASE_URL}${newVersion.url}`,
+                          thumbnailUrl: newVersion.url,
+                          prompt: newVersion.metadata?.prompt || '',
+                          negativePrompt: newVersion.metadata?.negativePrompt,
+                          generationTime: newVersion.metadata?.generationTime || 0,
+                          provider: newVersion.metadata?.provider as any,
+                          width: newVersion.metadata?.width || 1024,
+                          height: newVersion.metadata?.height || 1024,
+                          fileSize: 0,
+                          createdAt: newVersion.metadata?.createdAt || ''
+                        });
+                      }
+                    }}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white text-2xl transition-all z-10"
+                  >
+                    ›
+                  </button>
+                  {/* 版本指示器 */}
+                  <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-2 rounded-full z-10">
+                    {currentVersionIndex + 1} / {versions.length}
+                  </div>
+                </>
+              );
+            }
+            return null;
+          })()}
+
           <img
             src={fullscreenImage.url.startsWith('http') || fullscreenImage.url.startsWith('blob:')
               ? fullscreenImage.url

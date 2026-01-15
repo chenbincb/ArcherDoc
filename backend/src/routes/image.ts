@@ -350,4 +350,85 @@ router.post(
     })
 );
 
+/**
+ * POST /webhook/api/save-slide-prompt
+ * 保存单个 slide 的提示词到 image_data.json
+ */
+router.post(
+    '/save-slide-prompt',
+    asyncHandler(async (req: Request, res: Response) => {
+        const { jobId, slideId, prompt } = req.body;
+
+        logger.info('Saving slide prompt', { jobId, slideId });
+
+        if (!jobId || slideId === undefined || !prompt) {
+            return res.status(400).json({
+                success: false,
+                error: 'jobId, slideId and prompt are required'
+            });
+        }
+
+        try {
+            const jobManager = getJobManager();
+            const job = jobManager.getJob(jobId);
+
+            if (!job) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Job not found'
+                });
+            }
+
+            const jobDir = jobManager.getJobDir(jobId);
+            const imageDataPath = path.join(jobDir, 'image_data.json');
+
+            // 读取现有的 image_data.json
+            let imageData: any[] = [];
+            try {
+                const content = await fs.readFile(imageDataPath, 'utf-8');
+                imageData = JSON.parse(content);
+            } catch (err) {
+                // 文件不存在，创建新数组
+                logger.warn(`image_data.json not found for job ${jobId}, creating new one`);
+            }
+
+            // 查找并更新对应 slide 的提示词
+            let found = false;
+            for (let i = 0; i < imageData.length; i++) {
+                if (imageData[i].id === slideId) {
+                    imageData[i].suggestedPrompt = prompt;
+                    imageData[i].userPrompt = prompt;
+                    found = true;
+                    break;
+                }
+            }
+
+            // 如果没有找到，添加新的记录
+            if (!found) {
+                imageData.push({
+                    id: slideId,
+                    suggestedPrompt: prompt,
+                    userPrompt: prompt
+                });
+            }
+
+            // 保存更新后的文件
+            await fs.writeFile(imageDataPath, JSON.stringify(imageData, null, 2), 'utf-8');
+
+            logger.success(`Saved prompt for slide ${slideId} in job ${jobId}`);
+
+            res.json({
+                success: true,
+                message: 'Prompt saved successfully'
+            });
+        } catch (error: any) {
+            logger.error('Save prompt failed:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    })
+);
+
 export default router;

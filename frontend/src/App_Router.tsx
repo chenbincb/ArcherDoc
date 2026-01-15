@@ -335,40 +335,44 @@ function MainAppComponent() {
       setUploadProgress(10);
 
       // Step 1: 处理PPT文件
-      const processMsg = "正在处理PPT文件...";
-      setStatusMessage(processMsg);
+      setStatusMessage("正在处理PPT文件...");
       setProcessingDetail('分析文档结构和内容...');
-      await delay(1000);
-      setUploadProgress(20);
 
-      const translationResult = await processPPTX(file, appSettings);
+      // 创建进度回调
+      const onProgress = (current: number, total: number, stage: string, detail: string, stats?: any) => {
+        const progress = Math.min(90, 10 + Math.floor((current / total) * 80));
+        setUploadProgress(progress);
+        setProcessingDetail(detail || stage);
+        if (stats) {
+          setStats({
+            totalChars: stats.originalChars || 0,
+            translatedChars: stats.translatedChars || 0,
+            processingTime: 0
+          });
+        }
+      };
 
-      if (!translationResult.success) {
-        throw new Error(translationResult.error || '处理PPT文件失败');
-      }
+      const result = await processPPTX(file, appSettings, onProgress);
 
-      setUploadProgress(60);
+      setUploadProgress(95);
       setProcessingDetail('完成智能翻译，正在生成结果...');
-      await delay(2000);
+      await delay(1000);
 
-      // 保存翻译结果
-      const saveResult = await window.electronAPI?.saveFile(
-        `translated_${file.name.replace(/\.(pptx)$/i, '.txt')}`,
-        [{ name: 'text/plain', extensions: ['txt'] }]
-      );
-
-      if (saveResult && !saveResult.canceled) {
-        await window.electronAPI.writeFile(
-          saveResult.filePath,
-          translationResult.translatedContent || '翻译结果'
-        );
-      }
+      // 下载翻译后的 PPTX 文件
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `translated_${file.name}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       // 更新统计
       setStats({
-        totalChars: translationResult.totalChars,
-        translatedChars: translationResult.translatedChars,
-        processingTime: translationResult.processingTime
+        totalChars: result.stats.original,
+        translatedChars: result.stats.translated,
+        processingTime: 0
       });
 
       setUploadProgress(100);
@@ -444,11 +448,11 @@ function MainAppComponent() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('appId', appSettings.appId);
-      formData.append('imageProvider', settings.imageSettings.defaultProvider);
-      formData.append('comfyuiBaseUrl', settings.imageSettings.comfyuiSettings.baseUrl);
-      formData.append('comfyuiModel', settings.imageSettings.comfyuiSettings.model);
-      formData.append('nanobananaApiKey', settings.imageSettings.nanobananaSettings.apiKey);
-      formData.append('nanobananaModel', settings.imageSettings.nanobananaSettings.model);
+      formData.append('imageProvider', appSettings.imageSettings.defaultProvider);
+      formData.append('comfyuiBaseUrl', appSettings.imageSettings.comfyuiSettings.baseUrl);
+      formData.append('comfyuiModel', appSettings.imageSettings.comfyuiSettings.model);
+      formData.append('nanobananaApiKey', appSettings.imageSettings.nanobananaSettings.apiKey);
+      formData.append('nanobananaModel', appSettings.imageSettings.nanobananaSettings.model);
 
       const uploadResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-ppt`, {
         method: 'POST',
@@ -464,6 +468,7 @@ function MainAppComponent() {
       await delay(3000);
 
       // Step 3: 生成图片
+      const uploadData = await uploadResponse.json();
       const generateResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-images`, {
         method: 'POST',
         headers: {
@@ -471,7 +476,7 @@ function MainAppComponent() {
         },
         body: JSON.stringify({
           appId: appSettings.appId,
-          jobId: uploadResponse.data.jobId,
+          jobId: uploadData.jobId,
           prompts: promptData.prompts || []
         })
       });

@@ -22,11 +22,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         <nav className="border-b border-gray-800 bg-dark/50 backdrop-blur-md sticky top-0 z-40">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-500 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-primary/20">
+                    <div 
+                        onClick={safeGoHome}
+                        className="w-8 h-8 bg-gradient-to-br from-primary to-purple-500 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-primary/20 cursor-pointer hover:scale-105 transition-transform"
+                    >
                         AI
                     </div>
                     <div className="flex items-center gap-3">
-                        <span className="font-bold text-lg tracking-tight">ArcherDoc AI</span>
+                        <span 
+                            onClick={safeGoHome}
+                            className="font-bold text-lg tracking-tight cursor-pointer"
+                        >
+                            ArcherDoc AI
+                        </span>
                         {currentPage !== 'home' && (
                             <>
                                 <span className="text-gray-400">/</span>

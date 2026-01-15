@@ -155,7 +155,7 @@ async function generateVideoAsync(jobId: string, settings: any, mode: 'single' |
 
         // 2. 合并所有片段
         await jobManager.updateJob(jobId, { status: 'processing', progress: 80 });
-        const finalVideoPath = path.join(videoDir, 'final.mp4');
+        const finalVideoPath = path.join(videoDir, 'final_video.mp4');
 
         logger.info(`Merging ${videoSegments.length} video segments...`);
         await videoService.mergeVideos(videoSegments, finalVideoPath, tempDir);

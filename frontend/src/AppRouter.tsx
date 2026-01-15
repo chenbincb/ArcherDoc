@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings } from './contexts/SettingsContext';
 import { SettingsModal } from './components/SettingsModal';
+import { Navbar } from './components/Navbar';
 import { safeGoHome } from './utils/navigationHelper';
 import App from './App';
 
@@ -71,36 +72,14 @@ const AppRouter: React.FC = () => {
         return (
             <>
                 <div className="min-h-screen bg-dark text-gray-100 font-sans selection:bg-primary selection:text-white">
-                    {/* Unified Navigation */}
-                    <nav className="border-b border-gray-800 bg-dark/50 backdrop-blur-md sticky top-0 z-40">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-500 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-primary/20">
-                                    AI
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="font-bold text-lg tracking-tight">ArcherDoc AI</span>
-                                    <span className="text-gray-400">/</span>
-                                    <span className="text-sm text-gray-300">视频文案审核</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={safeGoHome}
-                                    className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-                                >
-                                    <span>🏠</span>
-                                    <span>返回首页</span>
-                                </button>
-                                <button
-                                    onClick={() => setIsSettingsOpen(true)}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-all text-sm font-medium border border-gray-700"
-                                >
-                                    <span>⚙️ 设置</span>
-                                </button>
-                            </div>
-                        </div>
-                    </nav>
+                    <Navbar
+                        currentPage="video"
+                        installPrompt={null}
+                        handleInstallApp={() => {}}
+                        setIsSettingsOpen={setIsSettingsOpen}
+                        hasApiKey={true}
+                        isOllama={false}
+                    />
 
                     <React.Suspense fallback={<div className="text-center mt-20 text-gray-400">加载视频预览页面中...</div>}>
                         <VideoReviewPage
@@ -129,36 +108,14 @@ const AppRouter: React.FC = () => {
         return (
             <>
                 <div className="min-h-screen bg-dark text-gray-100 font-sans selection:bg-primary selection:text-white">
-                    {/* Unified Navigation */}
-                    <nav className="border-b border-gray-800 bg-dark/50 backdrop-blur-md sticky top-0 z-40">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-500 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-primary/20">
-                                    AI
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="font-bold text-lg tracking-tight">ArcherDoc AI</span>
-                                    <span className="text-gray-400">/</span>
-                                    <span className="text-sm text-gray-300">文章预览</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={safeGoHome}
-                                    className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-                                >
-                                    <span>🏠</span>
-                                    <span>返回首页</span>
-                                </button>
-                                <button
-                                    onClick={() => setIsSettingsOpen(true)}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-all text-sm font-medium border border-gray-700"
-                                >
-                                    <span>⚙️ 设置</span>
-                                </button>
-                            </div>
-                        </div>
-                    </nav>
+                    <Navbar
+                        currentPage="article"
+                        installPrompt={null}
+                        handleInstallApp={() => {}}
+                        setIsSettingsOpen={setIsSettingsOpen}
+                        hasApiKey={true}
+                        isOllama={false}
+                    />
 
                     <React.Suspense fallback={<div className="text-center mt-20 text-gray-400">加载文章预览页面中...</div>}>
                         <ArticleReviewPage
@@ -186,35 +143,14 @@ const AppRouter: React.FC = () => {
         return (
             <>
                 <div className="min-h-screen bg-dark text-gray-100 font-sans selection:bg-primary selection:text-white">
-                    {/* Unified Navigation */}
-                    <nav className="border-b border-gray-800 bg-dark/50 backdrop-blur-md sticky top-0 z-40">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-br from-primary to-purple-500 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-primary/20">
-                                    AI
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="font-bold text-lg tracking-tight">ArcherDoc AI</span>
-                                    <span className="text-gray-400">/</span>
-                                    <span className="text-sm text-gray-300">AI生图审核</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={safeGoHome}
-                                    className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-                                >
-                                    <span>🏠 返回首页</span>
-                                </button>
-                                <button
-                                    onClick={() => setIsSettingsOpen(true)}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-all text-sm font-medium border border-gray-700"
-                                >
-                                    <span>⚙️ 设置</span>
-                                </button>
-                            </div>
-                        </div>
-                    </nav>
+                    <Navbar
+                        currentPage="image"
+                        installPrompt={null}
+                        handleInstallApp={() => {}}
+                        setIsSettingsOpen={setIsSettingsOpen}
+                        hasApiKey={true}
+                        isOllama={false}
+                    />
 
                     <React.Suspense fallback={<div className="text-center mt-20 text-gray-400">加载AI配图页面中...</div>}>
                         <ImageReviewPage

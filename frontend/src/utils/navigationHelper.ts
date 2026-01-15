@@ -39,8 +39,7 @@ export const safeNavigate = (url: string): void => {
       } else {
         // pushState生效了，触发事件让React知道
         const popStateEvent = new PopStateEvent('popstate', {
-          state: {},
-          url: url
+          state: { url: url }
         });
         window.dispatchEvent(popStateEvent);
 

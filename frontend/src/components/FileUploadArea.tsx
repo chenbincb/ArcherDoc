@@ -57,7 +57,7 @@ export const FileUploadArea: React.FC<FileUploadAreaProps> = ({
                     <h3 className="text-2xl font-bold text-white mb-5 group-hover:text-purple-400 transition-colors">
                         点击或拖拽文件到这里
                     </h3>
-                    <p className="text-gray-400 mb-8 max-w-sm mx-auto leading-relaxed">
+                    <div className="text-gray-400 mb-8 max-w-sm mx-auto leading-relaxed">
                         {/* Format Icons Row */}
                         <div className="flex gap-3 justify-center opacity-60 group-hover:opacity-100 transition-opacity duration-300 transform group-hover:scale-105">
                             {[
@@ -73,7 +73,7 @@ export const FileUploadArea: React.FC<FileUploadAreaProps> = ({
                                 </div>
                             ))}
                         </div>
-                    </p>
+                    </div>
 
                     <input
                         type="file"
