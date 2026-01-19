@@ -154,7 +154,9 @@ router.post(
       const result = await aiService.analyzeSlideForImage(
         slideTitle,
         slideContent,
-        provider || 'ComfyUI'
+        provider || 'ComfyUI',
+        'auto',              // visualFrameworkId
+        'tech_blue_glass'    // visualThemeId
       );
 
       logger.success('Slide analysis completed');
@@ -226,7 +228,7 @@ router.post(
       const normalizedProvider = (provider || '').toLowerCase();
 
       // 根据模式确定文件名前缀
-      const filePrefix = isTextMode ? 'image' : `slide_${slideId}`;
+      const filePrefix = isTextMode ? 'image' : `slide_${slideId - 1}`;
       // 统一 provider 名称用于文件名
       const providerName = normalizedProvider === 'nanobanana' ? 'gemini' : 'comfyui';
 
@@ -383,7 +385,9 @@ router.post(
         const result = await aiService.analyzeSlideForImage(
           slide.title || '',
           slide.content || '',
-          style || 'ComfyUI'
+          style || 'ComfyUI',
+          'auto',              // visualFrameworkId
+          'tech_blue_glass'    // visualThemeId
         );
         prompts.push(result.suggestedPrompt);
       }

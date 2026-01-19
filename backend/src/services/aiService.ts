@@ -174,202 +174,106 @@ export class AIService {
   }
 
   /**
-   * 分析幻灯片内容,生成图片描述和提示词（统一前后端逻辑）
-   * 完整迁移自前端 generateSmartPrompt 函数
+   * 分析幻灯片内容,生成图片描述和提示词
+   * 使用视觉框架和主题系统
    */
   async analyzeSlideForImage(
     slideTitle: string,
     slideContent: string,
     provider: string,
-    imageStyle?: string,
-    contentType?: string
+    visualFrameworkId: string = 'auto',
+    visualThemeId: string = 'tech_blue_glass'
   ): Promise<{
     description: string;
     suggestedPrompt: string;
     keywords: string[];
     style: string;
+    selectedFrameworkId?: string;
   }> {
-    // 【终极重构】不同内容类型的专属构图指令库
-    // 结合了：私有云背景、严格的视角锁定、具体的IT隐喻
-    const typeInstructions: Record<string, string> = {
-      '逻辑架构图': `
-【强制构图：逻辑架构 (Logical Architecture)】
-1. **核心视角**：**2.5D等轴测 (Isometric View)**。
-2. **布局隐喻**：**模块化堆叠 (Modular Stacking)**。
-   - 就像搭建精密的主板或城市建筑。
-   - **底部**：IaaS层（服务器机柜、存储阵列）。
-   - **中间**：PaaS层（六边形服务模块、API网关）。
-   - **顶部**：SaaS层（悬浮的应用窗口、用户终端）。
-3. **逻辑表现**：用半透明的玻璃层板区分不同层级，模块之间要有垂直的连接线。
-4. **🚫 禁止**：禁止画成平面的流程图，禁止画成球体。`,
+    // 导入视觉框架和主题常量
+    const { VISUAL_FRAMEWORKS } = await import('../constants/visualFrameworks.js');
+    const { VISUAL_THEMES } = await import('../constants/visualThemes.js');
 
-      '业务流程图': `
-【强制构图：业务流程 (Business Process)】
-1. **核心视角**：**2D 扁平化 (Flat Vector)** 或 **微倾斜视角**。
-2. **布局隐喻**：**工业流水线 (Pipeline)** 或 **泳道图 (Swimlane)**。
-   - **布局方向**：严格的**从左到右 (Left-to-Right)**。
-   - **左侧**：输入源（文件图标、原始数据块）。
-   - **中间**：处理引擎（齿轮、漏斗、芯片）。
-   - **右侧**：输出物（报表、成品图标）。
-3. **逻辑表现**：必须有明显的**指引箭头 (Directional Arrows)** 连接各环节。
-4. **🚫 禁止**：禁止画成循环的圆圈，禁止画成复杂的3D建筑。`,
+    // 获取选中的主题
+    const selectedTheme = VISUAL_THEMES.find((t: any) => t.id === visualThemeId) || VISUAL_THEMES[0];
+    const selectedFramework = visualFrameworkId !== 'auto' ? VISUAL_FRAMEWORKS.find((f: any) => f.id === visualFrameworkId) : null;
 
-      '网络拓扑图': `
-【强制构图：网络拓扑 (Network Topology)】
-1. **核心视角**：**广角俯视 (Top-down Wide Angle)**。
-2. **布局隐喻**：**星系分布 (Constellation)** 或 **城市交通网**。
-   - **中心**：核心数据中心（大型主机图标）。
-   - **周边**：边缘节点、终端设备、云资源池。
-3. **逻辑表现**：强调**连接线 (Connectivity)**，用发光的线条连接分散的节点。
-4. **🚫 禁止**：禁止画成单一的物体，必须是分散的、多节点的。`,
+    // --- 步骤 1: 让 AI 分析内容，提取核心实体与文字标签 ---
+    let systemPrompt = '';
+    const taskGuideline = `你是一位专业的视觉构图专家。请分析文档内容，并完成以下任务：
+1. **提取核心内容**：识别文档中的关键技术实体、流程步骤和核心价值。
+2. **设计文字标签 (Text Labels)**：从内容中选择 3-5 个最重要的关键词，并指定它们应该出现在画面中的哪个位置。
+   - **语言要求：必须使用中文**（除 API、AI、CPU 等极其通用的技术缩写外）。
+3. **转化为具体描述**：将文字转化为可被描绘的画面细节。`;
 
-      '数据可视化': `
-【强制构图：数据可视化 (Data Visualization)】
-1. **核心视角**：**正视 UI 界面 (Front-facing UI)**。
-2. **布局隐喻**：**管理驾驶舱 (Management Dashboard)**。
-   - 画面主体必须是一个**高保真的屏幕界面 (Screen Mockup)**。
-   - 包含：动态折线图、环形占比图、关键指标卡片(KPI Cards)。
-3. **逻辑表现**：通过图表的高低起伏体现数据的变化趋势。
-4. **🚫 禁止**：禁止画实物场景，必须是屏幕上的软件界面。`,
+    if (visualFrameworkId === 'auto') {
+      const frameworkList = VISUAL_FRAMEWORKS.map((f: any) => `- ${f.id}: ${f.name} - ${f.description}`).join('\n');
+      systemPrompt = `${taskGuideline}
 
-      '产品路线图': `
-【强制构图：产品路线图 (Roadmap)】
-1. **核心视角**：**2D 水平展开 (Horizontal)**。
-2. **布局隐喻**：**时间轴 (Timeline) 或 甘特图**。
-   - 一条清晰的主轴线贯穿画面左右。
-   - 轴线上分布着里程碑节点 (Milestones) 和旗帜标记。
-3. **逻辑表现**：用颜色的深浅或节点的点亮状态表示"已完成"和"规划中"。
-4. **🚫 禁止**：禁止画成复杂的网络结构。`,
+4. **选择视觉框架**：从以下列表中选择一个最适合的框架 ID。
 
-      '功能对比图': `
-【强制构图：对比分析 (Comparison)】
-1. **核心视角**：**分屏对比 (Split Screen)**。
-2. **布局隐喻**：**天平 (Scale)** 或 **镜像 (Mirror)**。
-   - 画面被垂直分割为左右两部分。
-   - **左侧**：传统模式（灰暗、复杂、杂乱）。
-   - **右侧**：新产品模式（明亮、整洁、高效）。
-3. **逻辑表现**：通过强烈的视觉反差（颜色、繁简）来突显产品优势。`,
+可用框架列表：
+${frameworkList}
 
-      '封面/通用页': `
-【强制构图：封面/通用 (Cover/General)】
-1. **核心视角**：**正视平面设计 (Flat Graphic Design)**。
-2. **布局隐喻**：**极简主义海报 (Minimalist Poster)**。
-   - **背景**：深色科技感渐变、抽象几何线条、品牌色光影。
-   - **主体**：留白为主，**中心区域**预留给标题文字（AI生成空白文本框）。
-3. **逻辑表现**：不展示具体技术细节，只传达"大气、专业、信赖"的品牌调性。
-4. **🚫 禁止**：禁止画具体的服务器、架构图或流程图！`,
+输出格式（严格执行）：
+[ID]: 选中的框架ID
+[DESCRIPTION]: 具体的画面描述（视角、主体元素、逻辑交互）
+[LABELS]: 图片中需要出现的中文/英文文字标签及其位置`;
+    } else {
+      systemPrompt = `${taskGuideline}
 
-      '自动识别': `
-【智能判断模式】
-请先阅读PPT内容，分析其最核心的逻辑，然后**必须**从上述6种模式中选择一种最匹配的：
-- 讲架构/层级 -> 选"逻辑架构图"
-- 讲流程/步骤 -> 选"业务流程图"
-- 讲节点/连接 -> 选"网络拓扑图"
-- 讲数据/监控 -> 选"数据可视化"
-- 讲规划/时间 -> 选"产品路线图"
-- 封面/目录/纯文字 -> 选"封面/通用页"`
-    };
-
-    // 获取当前类型的专属指令，如果没有匹配则默认使用自动识别
-    const selectedInstruction = typeInstructions[contentType || ''] || typeInstructions['自动识别'];
-    const effectiveStyle = imageStyle || '科技风格';
-
-    const prompt = `你是一位专注【私有云/B端软件产品】的资深视觉设计师。
-你的任务是将PPT文字转化为**功能性、结构化、符合行业标准的图解**。
-
-<slide_content>
-<title>${slideTitle}</title>
-<content>${slideContent}</content>
-</slide_content>
-
-<business_context>
-<industry>请根据文档内容自动识别所属行业领域</industry>
-<purpose>专业文档配图</purpose>
-<style>${effectiveStyle} (保持专业、干净、高信噪比)</style>
-</business_context>
-
-<task>
-【步骤 1：判断页面性质与内容理解】
-请先判断这张PPT的性质（是封面？目录？还是正文？）。
-- **如果是封面/目录/过渡页**：请侧重描述**视觉氛围**和**品牌调性**。严禁脑补具体的技术架构细节！不要因为标题里有关键词就去画复杂的架构图，这只是一张封面，需要的是大气、简约的背景。
-- **如果是正文内容页**：请像分析师一样拆解逻辑，识别技术实体（组件）、逻辑行为（关系）和核心诉求（价值）。
-
-【步骤 2：智能分类】
-${selectedInstruction}
-
-【步骤 3：生成结构化提示词】
-基于你的深度理解，进行视觉建模，严格执行以下要求。
-</task>
-
-<design_guidelines>
-<composition_principles>
-- 根据内容自动设计最完美的构图
-- 重点突出核心概念，避免信息过载
-- 使用装饰性元素填补空白，保持画面平衡
-- 避免过度拥挤或过度留白
-</composition_principles>
-
-<visual_translation_strategy>
-- （仅针对正文页）不能只画通用的方块，必须根据文档实际内容提取关键概念，并转化为与之匹配的具象化视觉元素
-- （如果是封面页）保持背景的简洁与留白
-</visual_translation_strategy>
-
-<text_rendering_rules>
-【核心原则】
-- 如需渲染文字，不重不漏地包含所有关键信息
-- 保持原文的逻辑层次和重点强调
-
-【格式规范】
-- 禁止使用markdown格式符号（如 # * - 等）
-- 标题使用字号和粗细区分，不添加符号
-- 列表项使用缩进组织，不添加项目符号
-
-【内容限制】
-- 保留技术缩写的英文形式（API、CPU、Cloud、DB、SaaS、PaaS、IaaS等）
-- 其他标签和说明文字使用中文
-- 如果无法保证汉字清晰，生成空白文本框，不要生成乱码英文
-
-【质量标准】
-- 视觉重心突出，主体明确
-- 元素分布均衡，有呼吸感
-- 引导线清晰，逻辑流畅
-- 符合阅读习惯（从左到右，从上到下）
-- 专业商务PPT风格，简洁现代
-</text_rendering_rules>
-</design_guidelines>
-
-<output_format>
-以下5个模块供参考，请根据内容选择适合的模块输出（不必全部填写，只输出有意义的部分）：
-
-1. **[场景构图]**：(如果是封面，描述大气背景和留白；如果是正文，描述视角和布局)
-2. **[核心元素]**：描述画面中的主体视觉元素
-3. **[逻辑交互]**：如有需要，描述元素之间的关系和连接
-4. **[文本标签]**：如有需要，指定中文标签内容
-5. **[视觉风格]**：${effectiveStyle}相关的风格描述
-
-请直接输出画面描述，不要包含JSON格式。
-</output_format>`;
-
-    const response = await this.generateText(prompt);
-
-    // 直接返回AI生成的提示词，不再尝试解析JSON
-    const generatedPrompt = response.trim();
-    
-    if (generatedPrompt && generatedPrompt.length > 10) {
-      return {
-        description: slideContent,
-        suggestedPrompt: generatedPrompt,
-        keywords: [slideTitle],
-        style: contentType || 'flat'
-      };
+输出格式（严格执行）：
+[DESCRIPTION]: 具体的画面描述（主体元素、逻辑交互）
+[LABELS]: 图片中需要出现的中文/英文文字标签及其位置`;
     }
 
-    // 如果生成失败，返回默认值
+    const userPrompt = `文档标题: ${slideTitle}\n文档内容: ${slideContent}`;
+    const aiResponse = await this.generateText(`${systemPrompt}\n\n${userPrompt}`);
+
+    // --- 步骤 2: 解析 AI 响应 ---
+    let baseDescription = '';
+    let baseLabels = '';
+    let frameworkId = visualFrameworkId;
+
+    if (visualFrameworkId === 'auto') {
+      const matchId = aiResponse.match(/\[ID\]:\s*(.*)/i);
+      const matchDesc = aiResponse.match(/\[DESCRIPTION\]:\s*([\s\S]*?)(?=\[LABELS\]|$)/i);
+      const matchLabels = aiResponse.match(/\[LABELS\]:\s*([\s\S]*)/i);
+      if (matchId) frameworkId = matchId[1].trim();
+      if (matchDesc) baseDescription = matchDesc[1].trim();
+      if (matchLabels) baseLabels = matchLabels[1].trim();
+    } else {
+      const matchDesc = aiResponse.match(/\[DESCRIPTION\]:\s*([\s\S]*?)(?=\[LABELS\]|$)/i);
+      const matchLabels = aiResponse.match(/\[LABELS\]:\s*([\s\S]*)/i);
+      baseDescription = matchDesc ? matchDesc[1].trim() : aiResponse.trim();
+      if (matchLabels) baseLabels = matchLabels[1].trim();
+    }
+
+    // 重新获取选中的框架（如果是自动匹配的话）
+    const finalFramework = VISUAL_FRAMEWORKS.find((f: any) => f.id === frameworkId) || selectedFramework || VISUAL_FRAMEWORKS[0];
+
+    // --- 步骤 3: 强制追加视觉指令 ---
+    const finalPrompt = `
+[CONTENT SCENE]: 
+${baseDescription}
+
+[TEXT LABELS]:
+${baseLabels}
+
+[VISUAL FRAMEWORK]: 
+${finalFramework.compositionInstruction}
+
+[VISUAL THEME]: 
+Style: ${selectedTheme.promptModifiers}
+Negative: ${selectedTheme.negativePrompt}
+`.trim();
+
     return {
-      description: slideContent,
-      suggestedPrompt: `关于 ${slideTitle} 的逻辑图表, ${effectiveStyle}, 结构化信息图表, 专业产品文档插图, 扁平化设计, 几何构图, 清晰的逻辑线条, 商务色调, 适合PPT展示, 无文字标签`,
+      description: baseDescription || slideContent,
+      suggestedPrompt: finalPrompt,
       keywords: [slideTitle],
-      style: 'flat'
+      style: visualThemeId,
+      selectedFrameworkId: finalFramework.id
     };
   }
 

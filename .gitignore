@@ -44,6 +44,7 @@ backend/.env
 
 # Trae AI files
 .trae
+.agent
 
 # Project specific
 landingpage/download/

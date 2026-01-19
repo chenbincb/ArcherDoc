@@ -333,7 +333,9 @@ ${contentSummary}
           const analysisResult = await aiService.analyzeSlideForImage(
             slide.title,
             slide.content,
-            'nanobanana'
+            'nanobanana',
+            'auto',              // visualFrameworkId - AI自动选择
+            'tech_blue_glass'    // visualThemeId - 默认科技蓝主题
           );
           outputData.push({
             id: slide.id,

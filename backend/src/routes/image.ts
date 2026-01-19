@@ -6,8 +6,24 @@ import { asyncHandler } from '../middleware/error.js';
 import { logger } from '../middleware/logger.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { VISUAL_FRAMEWORKS } from '../constants/visualFrameworks.js';
+import { VISUAL_THEMES } from '../constants/visualThemes.js';
 
 const router = Router();
+
+/**
+ * GET /webhook/api/visual-options
+ * 获取可用的视觉框架和主题
+ */
+router.get('/visual-options', (req, res) => {
+    res.json({
+        success: true,
+        data: {
+            frameworks: VISUAL_FRAMEWORKS,
+            themes: VISUAL_THEMES
+        }
+    });
+});
 
 /**
  * 图片元数据接口
@@ -76,14 +92,28 @@ async function saveImageWithMetadata(
 router.post(
     '/analyze-slide-for-image',
     asyncHandler(async (req: Request, res: Response) => {
-        const { slideId, slideTitle, slideContent, provider } = req.body;
+        const {
+            slideId,
+            slideTitle,
+            slideContent,
+            provider,
+            // New optional params
+            visualFrameworkId,
+            visualThemeId
+        } = req.body;
 
-        logger.info('Analyzing slide for image', { slideId, slideTitle, provider });
+        logger.info('Analyzing slide for image (Route Layer)', {
+            slideId,
+            slideTitle,
+            provider,
+            visualFrameworkId,
+            visualThemeId
+        });
 
-        if (!slideTitle || !slideContent) {
+        if (!slideTitle && !slideContent) {
             return res.status(400).json({
                 success: false,
-                error: 'slideTitle and slideContent are required'
+                error: 'slideTitle or slideContent is required'
             });
         }
 
@@ -96,11 +126,13 @@ router.post(
                 req.body.aiBaseUrl
             );
 
-            // 分析幻灯片
+            // 直接调用 aiService，视觉框架逻辑已内置
             const result = await aiService.analyzeSlideForImage(
-                slideTitle,
-                slideContent,
-                provider || 'ComfyUI'
+                slideTitle || '',
+                slideContent || '',
+                provider || 'ComfyUI',
+                visualFrameworkId || 'auto',
+                visualThemeId || 'tech_blue_glass'
             );
 
             logger.success('Slide analysis completed');
@@ -170,7 +202,7 @@ router.post(
             const normalizedProvider = (provider || '').toLowerCase();
 
             // 根据模式确定文件名前缀
-            const filePrefix = isTextMode ? 'image' : `slide_${slideId}`;
+            const filePrefix = isTextMode ? 'image' : `slide_${slideId - 1}`;
             // 统一 provider 名称用于文件名
             const providerName = normalizedProvider === 'nanobanana' ? 'gemini' : 'comfyui';
 
@@ -327,7 +359,9 @@ router.post(
                 const result = await aiService.analyzeSlideForImage(
                     slide.title || '',
                     slide.content || '',
-                    style || 'ComfyUI'
+                    style || 'ComfyUI',
+                    'auto',              // visualFrameworkId
+                    'tech_blue_glass'    // visualThemeId
                 );
                 prompts.push(result.suggestedPrompt);
             }

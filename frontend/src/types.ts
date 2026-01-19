@@ -180,6 +180,25 @@ export interface ComfyUISettings {
   scheduler: string;
 }
 
+// --- Visual Style Types ---
+
+export interface VisualFramework {
+  id: string;
+  name: string;
+  englishName: string;
+  category: 'contrast' | 'flow' | 'structure' | 'hierarchy' | 'scene';
+  description: string;
+  compositionInstruction: string;
+}
+
+export interface VisualTheme {
+  id: string;
+  name: string;
+  englishName: string;
+  promptModifiers: string;
+  negativePrompt: string;
+}
+
 export interface NanoBananaSettings {
   apiKey: string;
   model: string;
@@ -197,6 +216,8 @@ export interface ImageGenerationSettings {
   maxRetries: number;
   negativePrompt: string;
   imageFormat: 'png' | 'jpg';
+  // New visual settings
+  visualThemeId?: string; // Optional to maintain compatibility
 }
 
 export interface AppSettings {

@@ -102,6 +102,79 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
     setLocalImageSettings(appSettings.imageSettings);
   }, [appSettings]);
 
+  // Visual Frameworks and Themes State
+  const [visualFrameworks, setVisualFrameworks] = useState<any[]>([]);
+  const [visualThemes, setVisualThemes] = useState<any[]>([]);
+  const [selectedFrameworkId, setSelectedFrameworkId] = useState<string>('auto'); // 'auto' or frameworkId
+
+  // Fetch visual options on mount
+  useEffect(() => {
+    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/visual-options`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setVisualFrameworks(data.data.frameworks || []);
+          setVisualThemes(data.data.themes || []);
+          
+          // Ensure default theme is set if not already in settings
+          if (!localImageSettings.visualThemeId) {
+             const defaultTheme = data.data.themes.find((t: any) => t.id === 'tech_blue_glass') || data.data.themes[0];
+             if (defaultTheme) {
+               setLocalImageSettings(prev => ({ ...prev, visualThemeId: defaultTheme.id }));
+             }
+          }
+        }
+      })
+      .catch(err => console.error('Failed to fetch visual options:', err));
+  }, []);
+
+  // Update slide data when current slide changes
+  // Monitor when changing slides to update local framework selection state
+  useEffect(() => {
+      const currentSlideData = slideDataList[currentSlide];
+      if (currentSlideData) {
+          setSelectedFrameworkId(currentSlideData.selectedVisualFrameworkId || 'auto');
+      }
+  }, [currentSlide, slideDataList]);
+
+  const handleFrameworkChange = (frameworkId: string) => {
+      setSelectedFrameworkId(frameworkId);
+      
+      // Update the current slide data
+      const updatedSlideData = [...slideDataList];
+      if (updatedSlideData[currentSlide]) {
+          updatedSlideData[currentSlide] = {
+              ...updatedSlideData[currentSlide],
+              selectedVisualFrameworkId: frameworkId
+          };
+          setSlideDataList(updatedSlideData);
+      }
+  };
+
+  // Group frameworks by category for display
+  const groupedFrameworks = React.useMemo(() => {
+    const groups: Record<string, any[]> = {
+      'auto': [{ id: 'auto', name: '✨ 智能自动匹配', description: 'AI根据内容自动选择最合适的框架' }]
+    };
+    
+    // Categorize
+    const categoryMap: Record<string, string> = {
+        'contrast': '对比类',
+        'flow': '流程类',
+        'structure': '架构类',
+        'hierarchy': '层级类',
+        'scene': '场景类'
+    };
+
+    visualFrameworks.forEach(fw => {
+       const catName = categoryMap[fw.category] || '其它';
+       if (!groups[catName]) groups[catName] = [];
+       groups[catName].push(fw);
+    });
+    
+    return groups;
+  }, [visualFrameworks]);
+
   // 全屏模式下的键盘事件监听
   useEffect(() => {
     if (!showImageFullscreen) return;
@@ -867,8 +940,10 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
           slideTitle: currentSlideData.slideTitle || '',
           slideContent: slideContent,
           provider: localImageSettings.defaultProvider,
-          imageStyle: imageGenParams.imageStyle,
-          contentType: imageGenParams.contentType,
+          // New visual parameters
+          visualFrameworkId: selectedFrameworkId,
+          visualThemeId: localImageSettings.visualThemeId || 'tech_blue_glass',
+          
           // 传递 AI 配置
           aiProvider: activeProvider,
           aiApiKey: aiConfig?.apiKey,
@@ -1238,40 +1313,81 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
         {/* Right: Control Panel */}
         <div className="space-y-4">
           {/* Image Generation Parameters */}
-          <div className="bg-card border border-gray-700 rounded-xl p-4 shadow-lg">
-            <h3 className="text-sm font-medium text-gray-300 mb-4">图片生成参数</h3>
-
-            {/* Basic Parameters */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              {/* Image Style */}
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">图片风格</label>
-                <select
-                  value={imageGenParams.imageStyle}
-                  onChange={(e) => setImageGenParams(prev => ({ ...prev, imageStyle: e.target.value }))}
-                  className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:border-orange-500 focus:outline-none"
-                >
-                  {imageStyles.map(style => (
-                    <option key={style} value={style}>{style}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Content Type */}
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">内容类型</label>
-                <select
-                  value={imageGenParams.contentType}
-                  onChange={(e) => setImageGenParams(prev => ({ ...prev, contentType: e.target.value }))}
-                  className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:border-orange-500 focus:outline-none"
-                >
-                  {contentTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-
+          <div className="bg-card border border-gray-700 rounded-xl p-4 shadow-lg space-y-4">
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm font-medium text-gray-300">图片生成配置</h3>
+                <div className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    Pro
+                </div>
             </div>
+
+            {/* Global Visual Theme Selector */}
+            <div>
+                 <label className="text-xs text-gray-400 mb-2 block flex justify-between">
+                     <span>全局视觉主题 (Visual Theme)</span>
+                     <span className="text-orange-400 opacity-80 cursor-pointer" onClick={() => {/* TODO: Show theme details */}}>预览</span>
+                 </label>
+                 <div className="grid grid-cols-2 gap-2">
+                     {visualThemes.map(theme => (
+                         <div 
+                            key={theme.id}
+                            onClick={() => {
+                                const newSettings = { ...localImageSettings, visualThemeId: theme.id };
+                                setLocalImageSettings(newSettings);
+                                // Also update app settings to persist
+                                handleSaveSettings({
+                                    ...appSettings,
+                                    imageSettings: newSettings
+                                });
+                            }}
+                            className={`cursor-pointer border rounded-lg p-2 text-xs transition-all ${
+                                localImageSettings.visualThemeId === theme.id 
+                                ? 'bg-orange-500/20 border-orange-500 text-white' 
+                                : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
+                            }`}
+                         >
+                             <div className="font-medium truncate">{theme.name}</div>
+                             <div className="text-[10px] opacity-60 truncate">{theme.englishName}</div>
+                         </div>
+                     ))}
+                 </div>
+            </div>
+
+            <div className="h-px bg-gray-700 my-2"></div>
+
+            {/* Slide-Specific Visual Framework Selector */}
+            <div>
+                 <label className="text-xs text-gray-400 mb-2 block">
+                     当前页视觉框架 (Visual Framework)
+                 </label>
+                 <select
+                     value={selectedFrameworkId}
+                     onChange={(e) => handleFrameworkChange(e.target.value)}
+                     className="w-full bg-gray-900/50 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 focus:border-orange-500 focus:outline-none mb-2"
+                 >
+                     <option value="auto">✨ 智能自动匹配 (Auto)</option>
+                     {Object.entries(groupedFrameworks).map(([groupName, items]) => {
+                         if (groupName === 'auto') return null;
+                         return (
+                             <optgroup key={groupName} label={groupName}>
+                                 {(items as Array<{id: string; name: string}>).map(fw => (
+                                     <option key={fw.id} value={fw.id}>
+                                         {fw.name}
+                                     </option>
+                                 ))}
+                             </optgroup>
+                         );
+                     })}
+                 </select>
+                 
+                 {/* Framework Description Hint */}
+                 <div className="text-[10px] text-gray-500 bg-gray-900/30 p-2 rounded">
+                    {selectedFrameworkId === 'auto' 
+                        ? 'AI 将根据幻灯片内容，自动从32种视觉框架中选择最合适的构图。'
+                        : visualFrameworks.find(f => f.id === selectedFrameworkId)?.description || ''}
+                 </div>
+            </div>
+
           </div>
 
           {/* Image Generation Prompt */}

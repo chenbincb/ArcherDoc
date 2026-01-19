@@ -24,7 +24,7 @@ frontend/
 │   ├── pages/           # 页面级组件 (App, ArticleReviewPage...)
 │   ├── services/        # API 服务 (aiService, videoService...)
 │   ├── utils/           # 工具函数
-│   ├── constants.ts     # 常量配置 (AI_SERVER_HOST)
+│   ├── constants/       # 常量配置 (visualFrameworks, visualThemes)
 │   ├── types.ts         # 类型定义
 │   └── index.css        # 全局样式
 ├── vite.config.ts       # Vite 配置
