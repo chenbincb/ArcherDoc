@@ -199,52 +199,82 @@ export class AIService {
     const selectedFramework = visualFrameworkId !== 'auto' ? VISUAL_FRAMEWORKS.find((f: any) => f.id === visualFrameworkId) : null;
 
     // --- 步骤 1: 让 AI 分析内容，提取核心实体与文字标签 ---
-    let systemPrompt = '';
-    const taskGuideline = `你是一位专业的视觉构图专家。请分析文档内容，并完成以下任务：
-1. **提取核心内容**：识别文档中的关键技术实体、流程步骤和核心价值。
-2. **设计文字标签 (Text Labels)**：从内容中选择 3-5 个最重要的关键词，并指定它们应该出现在画面中的哪个位置。
-   - **语言要求：必须使用中文**（除 API、AI、CPU 等极其通用的技术缩写外）。
-3. **转化为具体描述**：将文字转化为可被描绘的画面细节。`;
-
-    if (visualFrameworkId === 'auto') {
-      const frameworkList = VISUAL_FRAMEWORKS.map((f: any) => `- ${f.id}: ${f.name} - ${f.description}`).join('\n');
-      systemPrompt = `${taskGuideline}
-
-4. **选择视觉框架**：从以下列表中选择一个最适合的框架 ID。
-
-可用框架列表：
-${frameworkList}
-
-输出格式（严格执行）：
-[ID]: 选中的框架ID
-[DESCRIPTION]: 具体的画面描述（视角、主体元素、逻辑交互）
-[LABELS]: 图片中需要出现的中文/英文文字标签及其位置`;
+    const isAutoMode = visualFrameworkId === 'auto';
+    
+    // 构建框架相关的信息
+    let frameworkSection = '';
+    let frameworkSelectionTask = '';
+    let outputIdLine = '';
+    
+    if (isAutoMode) {
+      // 自动模式：提供框架列表让 AI 选择
+      const frameworkList = VISUAL_FRAMEWORKS.map((f: any) => 
+        `### ${f.id}\n- 名称: ${f.name} (${f.englishName})\n- 类别: ${f.category}\n- 适用场景: ${f.description}\n- 构图指令 (Composition Instruction): ${f.compositionInstruction}`
+      ).join('\n\n');
+      
+      frameworkSection = `## 可用视觉框架列表\n\n${frameworkList}`;
+      frameworkSelectionTask = '2. **选择视觉框架**：从下方的可用框架列表中选择最适合表达该内容的框架。\n';
+      outputIdLine = '[ID]: 选中的框架ID\n';
     } else {
-      systemPrompt = `${taskGuideline}
-
-输出格式（严格执行）：
-[DESCRIPTION]: 具体的画面描述（主体元素、逻辑交互）
-[LABELS]: 图片中需要出现的中文/英文文字标签及其位置`;
+      // 指定模式：直接告知框架信息
+      const frameworkName = selectedFramework ? `${selectedFramework.name} (${selectedFramework.englishName})` : visualFrameworkId;
+      const compositionInstruction = selectedFramework ? selectedFramework.compositionInstruction : '';
+      
+      frameworkSection = `## 指定的视觉框架\n\n用户已指定使用以下视觉框架，你必须严格遵循：\n- **框架名称**: ${frameworkName}\n- **构图指令**: ${compositionInstruction}`;
     }
+    
+    // 统一的提示词模板
+    const systemPrompt = `你是一位专业的视觉构图专家。请分析文档内容，并完成以下任务：
+
+${frameworkSection}
+
+## 任务要求
+
+1. **提取核心内容**：识别文档中的关键技术实体、流程步骤和核心价值。
+${frameworkSelectionTask}${isAutoMode ? '3' : '2'}. **生成内容概括 [SUMMARY]**：用 1-2 句话精炼概括原文的核心主题和要点，这将作为图片生成的内容指引。
+${isAutoMode ? '4' : '3'}. **生成画面描述 [DESCRIPTION]**：
+   - **【重要】你的描述必须严格遵循${isAutoMode ? '所选' : '指定'}框架的构图指令（Composition Instruction）**
+   - 描述中的空间布局、元素位置、视角必须与框架的构图指令一致
+   - 将文档中的抽象概念转化为符合框架结构的具体视觉元素
+${isAutoMode ? '5' : '4'}. **设计文字标签 [LABELS]**：
+   - **核心目标：完整、准确地表达原文的核心内容**
+   - 标签数量不固定，根据内容复杂度和框架类型灵活决定（可以是 2-10 个或更多）
+   - 标签内容应涵盖原文中的关键概念、步骤名称、技术术语等
+   - 如果是流程类框架，需要包含完整的步骤标签
+   - 如果是对比类框架，需要包含对比双方的完整标签
+   - 如果是层级类框架，需要包含各层级的完整名称
+   - **语言要求：必须使用中文**（除 API、AI、CPU 等极其通用的技术缩写外）
+   - 为每个标签指定在画面中的位置（位置应符合框架的空间结构）
+
+## 输出格式（严格执行）
+
+${outputIdLine}[SUMMARY]: 用 1-2 句话概括原文的核心主题和要点。
+[DESCRIPTION]: 具体的画面描述。**必须严格遵循框架的"构图指令"中描述的空间布局、视角和元素组织方式。**
+[LABELS]: 图片中需要出现的文字标签及其位置（位置应根据框架的构图指令和内容逻辑灵活安排）`;
 
     const userPrompt = `文档标题: ${slideTitle}\n文档内容: ${slideContent}`;
     const aiResponse = await this.generateText(`${systemPrompt}\n\n${userPrompt}`);
 
     // --- 步骤 2: 解析 AI 响应 ---
+    let baseSummary = '';
     let baseDescription = '';
     let baseLabels = '';
     let frameworkId = visualFrameworkId;
 
     if (visualFrameworkId === 'auto') {
       const matchId = aiResponse.match(/\[ID\]:\s*(.*)/i);
+      const matchSummary = aiResponse.match(/\[SUMMARY\]:\s*([\s\S]*?)(?=\[DESCRIPTION\]|$)/i);
       const matchDesc = aiResponse.match(/\[DESCRIPTION\]:\s*([\s\S]*?)(?=\[LABELS\]|$)/i);
       const matchLabels = aiResponse.match(/\[LABELS\]:\s*([\s\S]*)/i);
       if (matchId) frameworkId = matchId[1].trim();
+      if (matchSummary) baseSummary = matchSummary[1].trim();
       if (matchDesc) baseDescription = matchDesc[1].trim();
       if (matchLabels) baseLabels = matchLabels[1].trim();
     } else {
+      const matchSummary = aiResponse.match(/\[SUMMARY\]:\s*([\s\S]*?)(?=\[DESCRIPTION\]|$)/i);
       const matchDesc = aiResponse.match(/\[DESCRIPTION\]:\s*([\s\S]*?)(?=\[LABELS\]|$)/i);
       const matchLabels = aiResponse.match(/\[LABELS\]:\s*([\s\S]*)/i);
+      if (matchSummary) baseSummary = matchSummary[1].trim();
       baseDescription = matchDesc ? matchDesc[1].trim() : aiResponse.trim();
       if (matchLabels) baseLabels = matchLabels[1].trim();
     }
@@ -254,6 +284,9 @@ ${frameworkList}
 
     // --- 步骤 3: 强制追加视觉指令 ---
     const finalPrompt = `
+[CONTENT SUMMARY]:
+${baseSummary || slideTitle}
+
 [CONTENT SCENE]: 
 ${baseDescription}
 
@@ -264,7 +297,7 @@ ${baseLabels}
 ${finalFramework.compositionInstruction}
 
 [VISUAL THEME]: 
-Style: ${selectedTheme.promptModifiers}
+ Style: ${selectedTheme.promptModifiers}
 Negative: ${selectedTheme.negativePrompt}
 `.trim();
 

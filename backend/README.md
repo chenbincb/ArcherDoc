@@ -20,7 +20,7 @@ backend/
 │   ├── constants/       # 视觉框架 (32种) 与 主题 (7种) 常量定义
 │   ├── routes/          # 路由控制器
 │   │   ├── doc.ts       # DOCX 文档生成
-│   │   ├── image.ts     # 图片生成 (已实现 slide_i-1 索引标准化)
+│   │   ├── image.ts     # 图片生成 
 │   │   ├── video.ts     # 视频生成 (支持索引容错)
 │   │   ├── article.ts   # 文章生成
 │   │   └── ...

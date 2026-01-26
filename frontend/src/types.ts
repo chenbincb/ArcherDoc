@@ -27,7 +27,8 @@ export enum ArticleType {
 
 export enum ImageProvider {
   COMFYUI = 'ComfyUI',
-  NANO_BANANA = 'NanoBanana'
+  NANO_BANANA = 'NanoBanana',
+  GLM_IMAGE = 'GLM'
 }
 
 // --- Data Structures ---
@@ -208,9 +209,16 @@ export interface NanoBananaSettings {
   height: number;
 }
 
+export interface GLMImageSettings {
+  apiKey: string;
+  size: '1088x1920' | '1920x1088' | '1280x1280' | '1024x1024';
+  quality: 'hd' | 'standard';
+}
+
 export interface ImageGenerationSettings {
   comfyuiSettings: ComfyUISettings;
   nanobananaSettings: NanoBananaSettings;
+  glmSettings: GLMImageSettings;
   defaultProvider: ImageProvider;
   autoRetry: boolean;
   maxRetries: number;

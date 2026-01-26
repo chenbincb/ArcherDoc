@@ -4,7 +4,8 @@ import {
   GeneratedImage,
   ImageGenerationSettings,
   ComfyUISettings,
-  NanoBananaSettings
+  NanoBananaSettings,
+  GLMImageSettings
 } from '../types';
 import { API_CONFIG } from '../constants';
 
@@ -254,6 +255,76 @@ export class ImageService {
       };
     } catch (error) {
       console.error('Nano Banana图片生成失败:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 使用 GLM-Image (智谱AI) 生成图片
+   */
+  static async generateImageWithGLM(request: ImageGenerationRequest, settings: ImageGenerationSettings): Promise<GeneratedImage> {
+    const startTime = Date.now();
+
+    try {
+      const glmSettings = settings.glmSettings;
+      
+      // 解析尺寸
+      const [widthStr, heightStr] = glmSettings.size.split('x');
+      const imageWidth = parseInt(widthStr, 10) || 1088;
+      const imageHeight = parseInt(heightStr, 10) || 1920;
+
+      // 生成 jobId
+      const jobId = Date.now().toString();
+
+      // 调用后端 API 生成图片
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-images`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobId,
+          slideId: request.slideId,
+          provider: 'glm',
+          prompt: request.prompt,
+          negativePrompt: request.negativePrompt,
+          width: imageWidth,
+          height: imageHeight,
+          glmApiKey: glmSettings.apiKey
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`GLM-Image 生成失败: ${response.statusText} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      const generationTime = (Date.now() - startTime) / 1000;
+
+      if (!result.success || !result.data?.imageUrl) {
+        throw new Error(result.error || 'GLM-Image 未返回图片');
+      }
+
+      const baseUrl = API_CONFIG.BASE_URL;
+      const imageUrl = `${baseUrl}${result.data.imageUrl}`;
+
+      return {
+        id: `glm_${Date.now()}`,
+        slideId: request.slideId,
+        url: imageUrl,
+        thumbnailUrl: imageUrl,
+        prompt: request.prompt,
+        negativePrompt: request.negativePrompt,
+        generationTime,
+        provider: ImageProvider.GLM_IMAGE,
+        width: imageWidth,
+        height: imageHeight,
+        fileSize: result.data?.fileSize || 0,
+        createdAt: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('GLM-Image 图片生成失败:', error);
       throw error;
     }
   }

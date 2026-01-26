@@ -68,8 +68,9 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [isGeneratingComfyUI, setIsGeneratingComfyUI] = useState(false);
   const [isGeneratingNanoBanana, setIsGeneratingNanoBanana] = useState(false);
+  const [isGeneratingGLM, setIsGeneratingGLM] = useState(false);
   const [showGlobalLoading, setShowGlobalLoading] = useState(false);
-  const [globalLoadingType, setGlobalLoadingType] = useState<'COMFYUI' | 'NANOBANANA' | null>(null);
+  const [globalLoadingType, setGlobalLoadingType] = useState<'COMFYUI' | 'NANOBANANA' | 'GLM' | null>(null);
   const [currentProcessingSlide, setCurrentProcessingSlide] = useState(0);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -526,6 +527,9 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       if (provider === ImageProvider.COMFYUI) {
         setIsGeneratingComfyUI(true);
         setGlobalLoadingType('COMFYUI');
+      } else if (provider === ImageProvider.GLM_IMAGE) {
+        setIsGeneratingGLM(true);
+        setGlobalLoadingType('GLM');
       } else {
         setIsGeneratingNanoBanana(true);
         setGlobalLoadingType('NANOBANANA');
@@ -545,7 +549,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
       setSlideDataList(updatedSlideData);
 
       // 设置状态文字，包含提供商和页码信息
-      const providerName = provider === ImageProvider.COMFYUI ? 'ComfyUI' : 'NanoBanana';
+      const providerName = provider === ImageProvider.COMFYUI ? 'ComfyUI' : (provider === ImageProvider.GLM_IMAGE ? 'GLM-Image' : 'NanoBanana');
       setProcessingDetail(`正在使用 ${providerName} 为第 ${currentSlide + 1} 页生成图片...`);
       addLog(`正在使用 ${provider} 生成图片: ${currentSlideData.userPrompt}`);
 
@@ -738,6 +742,53 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
             height: localImageSettings.comfyuiSettings.height
           }),
         });
+      } else if (provider === ImageProvider.GLM_IMAGE) {
+        // GLM-Image: 调用后端 API
+        const glmSettings = localImageSettings.glmSettings;
+
+        // 检查 API Key
+        if (!glmSettings?.apiKey || glmSettings.apiKey.trim() === '') {
+          showNotification('缺少 GLM API Key，请在设置中配置');
+          onOpenSettings?.({ tab: 'image', subTab: 'glm' });
+          setIsGeneratingGLM(false);
+          setGlobalLoadingType('');
+          setShowGlobalLoading(false);
+          setCurrentProcessingSlide(-1);
+          const updatedSlideData = [...slideDataList];
+          updatedSlideData[currentSlide] = {
+            ...currentSlideData,
+            generationStatus: 'pending' as const,
+            errorMessage: undefined
+          };
+          setSlideDataList(updatedSlideData);
+          return;
+        }
+
+        setProcessingDetail('正在调用 GLM-Image API 生成图片...');
+        addLog('开始调用 GLM-Image API');
+
+        // 解析尺寸
+        const [widthStr, heightStr] = (glmSettings.size || '1088x1920').split('x');
+        const imageWidth = parseInt(widthStr, 10) || 1088;
+        const imageHeight = parseInt(heightStr, 10) || 1920;
+
+        response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-images`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            jobId: imageJobId,
+            slideId: slideId,
+            provider: 'glm',
+            prompt: currentSlideData.userPrompt,
+            negativePrompt: currentSlideData.negativePrompt || localImageSettings.negativePrompt,
+            width: imageWidth,
+            height: imageHeight,
+            glmApiKey: glmSettings.apiKey,
+            isTextMode: isTextMode
+          }),
+        });
       } else {
         // ComfyUI: 直接调用n8n工作流
         response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-images`, {
@@ -855,6 +906,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
     } finally {
       setIsGeneratingComfyUI(false);
       setIsGeneratingNanoBanana(false);
+      setIsGeneratingGLM(false);
       setShowGlobalLoading(false);
       setGlobalLoadingType(null);
       setCurrentProcessingSlide(-1);
@@ -1423,21 +1475,21 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
           </div>
 
           {/* Generation Buttons */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => generateImage(ImageProvider.COMFYUI)}
               disabled={isGeneratingComfyUI}
-              className="flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all"
+              className="flex items-center justify-center gap-1.5 py-3 px-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all text-sm"
             >
               {isGeneratingComfyUI ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>ComfyUI生成中...</span>
+                  <span>生成中...</span>
                 </>
               ) : (
                 <>
                   <span>🎨</span>
-                  <span>ComfyUI生成</span>
+                  <span>ComfyUI</span>
                 </>
               )}
             </button>
@@ -1445,17 +1497,35 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
             <button
               onClick={() => generateImage(ImageProvider.NANO_BANANA)}
               disabled={isGeneratingNanoBanana}
-              className="flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all"
+              className="flex items-center justify-center gap-1.5 py-3 px-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all text-sm"
             >
               {isGeneratingNanoBanana ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>NanoBanana生成中...</span>
+                  <span>生成中...</span>
                 </>
               ) : (
                 <>
                   <span>🍌</span>
-                  <span>NanoBanana生成</span>
+                  <span>NanoBanana</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => generateImage(ImageProvider.GLM_IMAGE)}
+              disabled={isGeneratingGLM}
+              className="flex items-center justify-center gap-1.5 py-3 px-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-all text-sm"
+            >
+              {isGeneratingGLM ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>生成中...</span>
+                </>
+              ) : (
+                <>
+                  <span>🇨🇳</span>
+                  <span>GLM-Image</span>
                 </>
               )}
             </button>
@@ -1463,7 +1533,7 @@ export const ImageReviewPage: React.FC<ImageReviewPageProps> = ({
 
 
           {/* Status Message */}
-          {(isGeneratingComfyUI || isGeneratingNanoBanana) && (
+          {(isGeneratingComfyUI || isGeneratingNanoBanana || isGeneratingGLM) && (
             <div className="bg-card border border-gray-700 rounded-xl p-4 shadow-lg">
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>

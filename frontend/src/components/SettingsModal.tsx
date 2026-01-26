@@ -583,7 +583,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                   {/* 图片生成提供商 */}
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1">图片生成提供商</label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         onClick={() => setLocalSettings({
                           ...localSettings,
@@ -597,7 +597,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                       >
-                        ComfyUI (本地)
+                        🎨 ComfyUI
                       </button>
                       <button
                         onClick={() => setLocalSettings({
@@ -612,7 +612,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           }`}
                       >
-                        Nano Banana (云端)
+                        🍌 NanoBanana
+                      </button>
+                      <button
+                        onClick={() => setLocalSettings({
+                          ...localSettings,
+                          imageSettings: {
+                            ...localSettings.imageSettings,
+                            defaultProvider: ImageProvider.GLM_IMAGE
+                          }
+                        })}
+                        className={`px-3 py-2 text-sm rounded-lg transition-colors ${localSettings.imageSettings.defaultProvider === ImageProvider.GLM_IMAGE
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                      >
+                        🇨🇳 GLM-Image
                       </button>
                     </div>
                   </div>
@@ -622,7 +637,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                     <h4 className="text-sm font-medium text-orange-400 mb-3">
                       {localSettings.imageSettings.defaultProvider === ImageProvider.COMFYUI
                         ? '🎨 ComfyUI 设置'
-                        : '🍌 Nano Banana 设置'}
+                        : localSettings.imageSettings.defaultProvider === ImageProvider.GLM_IMAGE
+                          ? '🇨🇳 GLM-Image 设置'
+                          : '🍌 Nano Banana 设置'}
                     </h4>
 
                     {/* ComfyUI 设置 - 仅当选中 ComfyUI 时显示 */}
@@ -876,6 +893,93 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                                   </div>
                                 </div>
                               </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* GLM-Image 设置 - 仅当选中 GLM-Image 时显示 */}
+                    {localSettings.imageSettings.defaultProvider === ImageProvider.GLM_IMAGE && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            智谱 AI API Key
+                            <span className="text-xs text-gray-400 ml-2">
+                              (获取: <a href="https://open.bigmodel.cn/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">智谱开放平台</a>)
+                            </span>
+                          </label>
+                          <input
+                            type="password"
+                            className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            value={localSettings.imageSettings.glmSettings?.apiKey || ''}
+                            onChange={(e) => setLocalSettings({
+                              ...localSettings,
+                              imageSettings: {
+                                ...localSettings.imageSettings,
+                                glmSettings: {
+                                  ...(localSettings.imageSettings.glmSettings || { apiKey: '', size: '1088x1920', quality: 'hd' }),
+                                  apiKey: e.target.value
+                                }
+                              }
+                            })}
+                            placeholder="请输入智谱 AI API Key"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">图片尺寸</label>
+                            <select
+                              className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                              value={localSettings.imageSettings.glmSettings?.size || '1088x1920'}
+                              onChange={(e) => setLocalSettings({
+                                ...localSettings,
+                                imageSettings: {
+                                  ...localSettings.imageSettings,
+                                  glmSettings: {
+                                    ...(localSettings.imageSettings.glmSettings || { apiKey: '', size: '1088x1920', quality: 'hd' }),
+                                    size: e.target.value as '1088x1920' | '1920x1088' | '1280x1280' | '1024x1024'
+                                  }
+                                }
+                              })}
+                            >
+                              <option value="1088x1920">竖版 HD (1088×1920)</option>
+                              <option value="1920x1088">横版 HD (1920×1088)</option>
+                              <option value="1280x1280">正方形 (1280×1280)</option>
+                              <option value="1024x1024">标准 (1024×1024)</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1">图片质量</label>
+                            <select
+                              className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                              value={localSettings.imageSettings.glmSettings?.quality || 'hd'}
+                              onChange={(e) => setLocalSettings({
+                                ...localSettings,
+                                imageSettings: {
+                                  ...localSettings.imageSettings,
+                                  glmSettings: {
+                                    ...(localSettings.imageSettings.glmSettings || { apiKey: '', size: '1088x1920', quality: 'hd' }),
+                                    quality: e.target.value as 'hd' | 'standard'
+                                  }
+                                }
+                              })}
+                            >
+                              <option value="hd">高清 (HD)</option>
+                              <option value="standard">标准</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="px-4 py-3 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-lg border border-emerald-400/20">
+                          <div className="flex items-start gap-2">
+                            <span className="text-lg">🇨🇳</span>
+                            <div className="flex-1">
+                              <p className="text-xs text-gray-300 leading-relaxed">
+                                GLM-Image 是智谱 AI 推出的图像生成模型，支持中文 Prompt。
+                              </p>
                             </div>
                           </div>
                         </div>

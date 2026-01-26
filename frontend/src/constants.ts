@@ -116,6 +116,13 @@ export const DEFAULT_IMAGE_SETTINGS: ImageGenerationSettings = {
     height: 1024
   },
 
+  // GLM-Image (智谱AI) settings
+  glmSettings: {
+    apiKey: '',
+    size: '1088x1920',
+    quality: 'hd'
+  },
+
   // Common settings
   defaultProvider: ImageProvider.COMFYUI,
   autoRetry: true,

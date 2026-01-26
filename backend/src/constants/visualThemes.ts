@@ -56,5 +56,12 @@ export const VISUAL_THEMES: VisualTheme[] = [
         englishName: 'Abstract Geometry',
         promptModifiers: 'abstract geometric shapes, bauhaus style, colorful primitives, memphis design, pattern background, artistic composition, bold colors, basic forms',
         negativePrompt: 'representational, realistic, photo, character, text, detail, complex'
+    },
+    {
+        id: 'handmade_scrapbook',
+        name: '手工剪贴簿 (Scrapbook)',
+        englishName: 'Handmade Scrapbook',
+        promptModifiers: '实体手工剪贴簿风格，撕裂边缘纸张，半透明和纸胶带固定，回形针装饰，水彩渍迹背景，马克笔手绘箭头和星星，高饱和度多色碰撞，粗壮无衬线黑体标题，9:16竖版布局，杂志剪报拼贴效果',
+        negativePrompt: '数字化效果，平滑边缘，3D渲染，照片级真实，低分辨率，模糊，单调色彩'
     }
 ];

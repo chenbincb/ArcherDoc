@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getJobManager } from '../services/jobManager.js';
 import { getAIService } from '../services/aiService.js';
 import ComfyUIService from '../services/comfyUIService.js';
+import GLMImageService from '../services/glmImageService.js';
 import { asyncHandler } from '../middleware/error.js';
 import { logger } from '../middleware/logger.js';
 import fs from 'fs/promises';
@@ -169,6 +170,7 @@ router.post(
             width,
             height,
             comfyuiBaseUrl,
+            glmApiKey,
             isTextMode
         } = req.body;
 
@@ -204,7 +206,7 @@ router.post(
             // 根据模式确定文件名前缀
             const filePrefix = isTextMode ? 'image' : `slide_${slideId - 1}`;
             // 统一 provider 名称用于文件名
-            const providerName = normalizedProvider === 'nanobanana' ? 'gemini' : 'comfyui';
+            const providerName = normalizedProvider === 'nanobanana' ? 'gemini' : (normalizedProvider === 'glm' ? 'glm' : 'comfyui');
 
             // NanoBanana图片生成 logic
             if (normalizedProvider === 'nanobanana' && nanobananaResponseData) {
@@ -304,6 +306,72 @@ router.post(
                     return res.status(500).json({
                         success: false,
                         error: `ComfyUI generation failed: ${error.message}`
+                    });
+                }
+            }
+
+            // GLM-Image 图片生成
+            if (normalizedProvider === 'glm') {
+                logger.info('Generating image with GLM-Image', { slideId, prompt: prompt?.substring(0, 100) });
+
+                try {
+                    // 获取 GLM API Key
+                    const apiKey = glmApiKey || process.env.GLM_API_KEY;
+                    if (!apiKey) {
+                        return res.status(400).json({
+                            success: false,
+                            error: 'GLM_API_KEY is required for GLM-Image provider'
+                        });
+                    }
+
+                    const glmService = new GLMImageService(apiKey);
+
+                    // 构建尺寸字符串 (GLM 要求格式: "WIDTHxHEIGHT")
+                    const imageWidth = width || 1088;
+                    const imageHeight = height || 1920;
+                    const size = `${imageWidth}x${imageHeight}`;
+
+                    // 生成并下载图片
+                    const result = await glmService.generateImageAndDownload(prompt, {
+                        size,
+                        quality: 'hd',
+                        watermark: false
+                    });
+
+                    // 获取下一个编号
+                    const nextNumber = await getNextImageNumber(generatedImagesDir, filePrefix, providerName);
+                    const fileName = `${filePrefix}_${providerName}_${nextNumber}.png`;
+                    const outputPath = path.join(generatedImagesDir, fileName);
+
+                    // 保存图片和元数据
+                    const generationTime = (Date.now() - startTime) / 1000;
+                    await saveImageWithMetadata(outputPath, result.buffer, {
+                        prompt: prompt || '',
+                        negativePrompt: negativePrompt || '',
+                        provider: providerName,
+                        width: imageWidth,
+                        height: imageHeight,
+                        generationTime,
+                        createdAt: new Date().toISOString()
+                    });
+
+                    logger.success(`GLM-Image generated: ${fileName} (${result.buffer.length} bytes)`);
+
+                    return res.json({
+                        success: true,
+                        data: {
+                            imageUrl: `/webhook/servefiles/api/slides-data/${jobId}/generated_images/${fileName}`,
+                            fileName,
+                            fileSize: result.buffer.length,
+                            generationTime,
+                            originalUrl: result.url
+                        }
+                    });
+                } catch (error: any) {
+                    logger.error('GLM-Image generation failed:', error);
+                    return res.status(500).json({
+                        success: false,
+                        error: `GLM-Image generation failed: ${error.message}`
                     });
                 }
             }
