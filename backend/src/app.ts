@@ -12,6 +12,7 @@ import imageRouter from './routes/image.js';
 import videoRouter from './routes/video.js';
 import articleRouter from './routes/article.js';
 import mediaRouter from './routes/media.js';
+import narrationRouter from './routes/narration.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -41,6 +42,7 @@ export const createApp = () => {
   app.use('/webhook/api', videoRouter);
   app.use('/webhook/api', articleRouter);
   app.use('/webhook/api', mediaRouter);
+  app.use('/webhook/api', narrationRouter);
   app.use('/webhook', articleRouter); // For /webhook/regenerate-article compatibility
 
   // ✅ 兼容前端硬编码的下载路径逻辑

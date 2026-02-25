@@ -321,11 +321,17 @@ ${contentSummary}
 
       for (const slide of slides) {
         if (options.processingType === 'video') {
-          const noteContent = await aiService.generateSpeech(
-            slide.title,
-            slide.content,
-            slide.notes || ''
-          );
+          // Use existing notes if they exist, otherwise leave empty (no AI generation during upload)
+          let noteContent = slide.notes && slide.notes.trim() !== '' ? slide.notes : '';
+
+          // Clean up excessive newlines and normalize whitespace in notes
+          if (noteContent) {
+            noteContent = noteContent
+              .replace(/\n+/g, '\n')  // Replace multiple consecutive newlines with single newline
+              .replace(/\n\s*\n/g, '\n')  // Remove blank lines
+              .trim();  // Remove leading/trailing whitespace
+          }
+
           outputData.push({ id: slide.id, note: noteContent });
 
         } else {

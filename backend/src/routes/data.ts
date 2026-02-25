@@ -180,8 +180,14 @@ router.get(
 
       const slides = [];
       for (let i = 0; i < maxSlideNum; i++) {
-        const slideId = i;
-        const noteEntry = notesData.find((n: any) => (n.id === slideId || n.id === slideId + 1 || n.slideId === slideId || n.slideId === slideId + 1));
+        const slideIndex = i;  // 0-based index for file naming
+        const slideId = i + 1; // 1-based ID that corresponds to actual slide number
+
+        const noteEntry = notesData.find((n: any) => {
+          // Look for exact match between slideId and the ID in notesData
+          // notesData entries have IDs that match the original slide IDs from PPTExtractor
+          return n.id === slideId || n.slideId === slideId;
+        });
 
         const hasFile = (list: string[], prefix: string, ext: string) =>
           list.includes(`${prefix}${i}${ext}`) || list.includes(`${prefix}${i + 1}${ext}`);

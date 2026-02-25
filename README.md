@@ -55,6 +55,70 @@ npm run dev
 
 ## 📜 部署指南
 
+### 自动部署（推荐）
+
+项目提供了自动化部署脚本 `deploy.sh`：
+
+1. **配置服务器信息**
+   编辑 `deploy.sh` 文件，根据您的服务器信息修改以下参数：
+   ```bash
+   SERVER_USER="your_server_username"  # 服务器用户名
+   SERVER_IP="your_server_ip"         # 服务器IP地址
+   REMOTE_DIR="/path/to/your/project"  # 服务器项目路径
+   ```
+
+2. **配置SSH免密登录**（如果尚未配置）
+   ```bash
+   ssh-keygen -t rsa
+   ssh-copy-id your_username@your_server_ip
+   ```
+
+3. **执行部署**
+   ```bash
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
+
+**部署脚本功能：**
+- 自动创建当前版本的备份（保留最近10个备份）
+- 编译后端和前端代码
+- 使用rsync增量上传，避免重复传输大量文件
+- 排除node_modules、uploads、jobs等不需要上传的目录
+- 部署完成后自动重启服务
+
+### 手动部署
+
+1. **克隆代码到服务器**
+   ```bash
+   git clone <repository-url>
+   cd ArcherDoc
+   ```
+
+2. **安装依赖**
+   ```bash
+   # 后端
+   cd backend
+   npm install
+   npm run build
+
+   # 前端
+   cd ../frontend
+   npm install
+   npm run build
+   ```
+
+3. **配置环境变量**
+   根据您的服务器环境配置 `backend/.env` 文件
+
+4. **启动服务**
+   ```bash
+   # 使用PM2或其他进程管理器启动后端
+   cd backend
+   pm2 start npm --name "archerdoc-backend" -- run start
+
+   # 前端可通过nginx等web服务器部署dist目录
+   ```
+
 详细部署文档请参阅 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
 ## 📚 详细文档

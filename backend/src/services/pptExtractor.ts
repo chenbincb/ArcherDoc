@@ -59,14 +59,15 @@ export class PPTExtractor {
       let content = texts.join('\n');
 
       // 4. 视觉增强提取 (如果存在 visual content 且有 AI 服务)
-      if (imagesDir && aiService && this.hasVisualContent(slideXml)) {
+      // 优化：如果幻灯片总数超过10页，则跳过视觉识别以提升处理速度
+      if (imagesDir && aiService && this.hasVisualContent(slideXml) && slideFiles.length <= 10) {
         try {
           // 查找对应的图片文件 (假设名为 slide_1.png, slide_2.png 或 slide1.png 等，需匹配 upload.ts 生成规则)
           // 这里的命名规则通常取决于 pptConverter 的输出，pdftoppm 是 slide-1.png, libreoffice 是 slide1.png
           // 我们尝试几种常见格式
           const possibleNames = [`slide${slideId}.png`, `slide_${slideId}.png`, `slide-${slideId}.png`];
           let imagePath = '';
-          
+
           for (const name of possibleNames) {
             const p = path.join(imagesDir, name);
             try {
@@ -95,7 +96,7 @@ export class PPTExtractor {
         slideId,
         title,
         content,
-        notes
+        notes: notes || ''  // Ensure notes is always a string, even if empty
       });
     }
 
@@ -135,7 +136,7 @@ export class PPTExtractor {
       const notesXml = await zip.file(notesPath)?.async('string');
       if (!notesXml) return '';
 
-      return this.extractTextsFromXML(notesXml).join('\n');
+      return this.extractTextsFromXML(notesXml).join('');  // Direct concatenation without spaces or newlines
     } catch (err) {
       return '';
     }

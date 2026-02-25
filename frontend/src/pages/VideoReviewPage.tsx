@@ -71,6 +71,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [isMergingVideos, setIsMergingVideos] = useState(false);
+  const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [showGlobalLoading, setShowGlobalLoading] = useState(false);
   const [globalLoadingType, setGlobalLoadingType] = useState<'AUDIO' | 'VIDEO' | null>(null);
   const [currentProcessingSlide, setCurrentProcessingSlide] = useState(0);
@@ -485,6 +486,48 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
     }
   };
 
+  const handleGenerateNarration = async (slideIndex: number) => {
+    const slide = reviewData[slideIndex];
+    if (!slide) {
+      showNotification('当前幻灯片不存在');
+      return;
+    }
+
+    setIsGeneratingNarration(true);
+
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/generate-narration`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId,
+          slideId: slide.id,
+          slideTitle: slide.title || '',
+          slideContent: slide.content || '',
+          slideNotes: slide.script || ''
+        })
+      });
+
+      if (!response.ok) throw new Error(`AI解说词生成失败: ${response.statusText}`);
+      const result = await response.json();
+
+      if (result.success && result.data?.narration) {
+        // Update the specific slide's script with the generated narration
+        setReviewData(prev => prev.map((item, i) =>
+          i === slideIndex ? { ...item, script: result.data.narration } : item
+        ));
+        showNotification('AI解说词生成成功', 'success');
+      } else {
+        throw new Error(result.message || 'AI解说词生成失败');
+      }
+    } catch (error: any) {
+      console.error('Failed to generate narration:', error);
+      showNotification(`AI解说词生成失败: ${error.message}`);
+    } finally {
+      setIsGeneratingNarration(false);
+    }
+  };
+
   const handleExportNotes = async () => {
     if (!jobId) {
       showNotification('无法获取任务ID');
@@ -643,6 +686,15 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
                 className="w-full bg-gray-900 border border-gray-700 rounded p-3 h-96 text-sm resize-y"
                 placeholder="输入或编辑讲稿..."
               />
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => handleGenerateNarration(currentSlide)}
+                  disabled={isGeneratingNarration}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors disabled:opacity-50"
+                >
+                  {isGeneratingNarration ? '生成中...' : '🤖 AI生成解说词'}
+                </button>
+              </div>
             </div>
 
             <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
