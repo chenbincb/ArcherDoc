@@ -800,7 +800,7 @@ async function generateVideoAsync(jobId: string, settings: any, mode: 'single' |
       }
 
       const videoPath = path.join(videoDir, `slide_${slideId}.mp4`);
-      await videoService.generateSlideVideo(imagePath, hasAudio ? audioPath : null, videoPath);
+      await videoService.generateSlideVideo(imagePath, hasAudio ? audioPath : null, videoPath, 3.0, settings?.pageGap ?? 0.5);
 
       await jobManager.updateJob(jobId, {
         status: 'completed',

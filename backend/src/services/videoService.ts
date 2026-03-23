@@ -33,12 +33,14 @@ export class VideoService {
    * @param audioPath 音频路径 (可选)
    * @param outputPath 输出视频路径
    * @param defaultDuration 默认时长 (当无音频时使用)
+   * @param pageGap 页面完成语音后的停顿间隔 (秒)
    */
   async generateSlideVideo(
     imagePath: string,
     audioPath: string | null,
     outputPath: string,
-    defaultDuration: number = 3.0
+    defaultDuration: number = 3.0,
+    pageGap: number = 0.5
   ): Promise<void> {
     const startTime = Date.now();
 
@@ -67,8 +69,8 @@ export class VideoService {
         // 预先获取音频时长，比 -shortest 更稳健
         const audioDuration = await this.getMediaDuration(absAudioPath);
         if (audioDuration > 0) {
-          finalDuration = audioDuration;
-          logger.info(`Detected audio duration: ${finalDuration}s`);
+          finalDuration = audioDuration + pageGap;
+          logger.info(`Detected audio duration: ${audioDuration}s. Adding gap: ${pageGap}s. Total: ${finalDuration}s`);
         }
       } catch {
         logger.warn(`Audio not found or invalid: ${absAudioPath}, using default duration`);
@@ -106,7 +108,9 @@ export class VideoService {
       if (hasAudio) {
         command = command
           .audioCodec('aac')
-          .audioBitrate('128k');
+          .audioBitrate('128k')
+          // 明确告诉 AAC 编码器静音的精准长度，防止由于强制切断导致合并时长度丢弃
+          .audioFilters(`apad=pad_dur=${pageGap}`);
       }
 
       command

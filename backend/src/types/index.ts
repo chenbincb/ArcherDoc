@@ -166,6 +166,7 @@ export interface VideoSettings {
   qwenApiKey: string;
   qwenModel: string;
   qwenVoiceId: string;
+  pageGap?: number;
 }
 
 export interface ComfyUISettings {

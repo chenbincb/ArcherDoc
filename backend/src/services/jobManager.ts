@@ -12,7 +12,7 @@ export class JobManager {
   private readonly jobsDir: string;
   private readonly retentionDays: number;
 
-  constructor(jobsDir: string = './jobs', retentionDays: number = 7) {
+  constructor(jobsDir: string = './jobs', retentionDays: number = 30) {
     this.jobsDir = jobsDir;
     this.retentionDays = retentionDays;
     this.initialize();

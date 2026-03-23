@@ -415,9 +415,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">语音音色</label>
-                            <select
-                              className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                            <label className="block text-sm font-medium text-gray-300 mb-1">语音音色 (选择预设或手动输入ID)</label>
+                            <input
+                              list="minimax-voice-list"
+                              className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent"
                               value={localSettings.videoSettings.voiceId}
                               onChange={(e) => setLocalSettings({
                                 ...localSettings,
@@ -426,13 +427,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                                   voiceId: e.target.value
                                 }
                               })}
-                            >
+                              placeholder="选择或输入音色ID (如: Chinese (Mandarin)_News_Anchor)"
+                            />
+                            <datalist id="minimax-voice-list">
                               {AVAILABLE_VOICES.map(voice => (
                                 <option key={voice.id} value={voice.id}>
                                   {voice.name} - {voice.description}
                                 </option>
                               ))}
-                            </select>
+                            </datalist>
                           </div>
 
                         </>
@@ -529,9 +532,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">模型版本</label>
-                            <select
-                              className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                            <label className="block text-sm font-medium text-gray-300 mb-1">模型版本 (选择预设或手动输入ID)</label>
+                            <input
+                              list="qwen-model-list-select"
+                              className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent"
                               value={localSettings.videoSettings.qwenModel}
                               onChange={(e) => setLocalSettings({
                                 ...localSettings,
@@ -540,18 +544,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                                   qwenModel: e.target.value
                                 }
                               })}
-                            >
+                              placeholder="选择或输入模型版本 (如: qwen3-tts-flash)"
+                            />
+                            <datalist id="qwen-model-list-select">
                               {QWEN_TTS_MODELS.map(model => (
                                 <option key={model.id} value={model.id}>
                                   {model.name}
                                 </option>
                               ))}
-                            </select>
+                            </datalist>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">语音音色</label>
-                            <select
-                              className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                            <label className="block text-sm font-medium text-gray-300 mb-1">语音音色 (选择预设或手动输入ID)</label>
+                            <input
+                              list="qwen-voice-list"
+                              className="w-full bg-gray-800 border border-gray-600 rounded-lg p-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent"
                               value={localSettings.videoSettings.qwenVoiceId}
                               onChange={(e) => setLocalSettings({
                                 ...localSettings,
@@ -560,13 +567,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                                   qwenVoiceId: e.target.value
                                 }
                               })}
-                            >
+                              placeholder="选择或输入音色ID (如: Chelsie)"
+                            />
+                            <datalist id="qwen-voice-list">
                               {QWEN_TTS_VOICES.map(voice => (
                                 <option key={voice.id} value={voice.id}>
                                   {voice.name} - {voice.description}
                                 </option>
                               ))}
-                            </select>
+                            </datalist>
                           </div>
                         </>
                       )}

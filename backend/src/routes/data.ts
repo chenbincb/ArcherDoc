@@ -135,6 +135,14 @@ router.get(
       const imageDataPath = path.join(jobDir, 'image_data.json');
 
       let notesData = [];
+      let docContentData: any = null;
+      try {
+        const rawDocContent = await fs.readFile(path.join(jobDir, 'doc_content.json'), 'utf-8');
+        docContentData = JSON.parse(rawDocContent);
+      } catch {
+        // Ignored
+      }
+
       try {
         const rawNotes = await fs.readFile(notesPath, 'utf-8');
         notesData = JSON.parse(rawNotes);
@@ -179,18 +187,24 @@ router.get(
       );
 
       const slides = [];
-      for (let i = 0; i < maxSlideNum; i++) {
-        const slideIndex = i;  // 0-based index for file naming
-        const slideId = i + 1; // 1-based ID that corresponds to actual slide number
+
+      // 获取最长的数据作为基准，优先使用 docContentData，因为它包含真实的 slide 结构和标题等信息
+      const baseSlides = docContentData?.slides && docContentData.slides.length > 0 
+        ? docContentData.slides 
+        : Array.from({ length: maxSlideNum }, (_, i) => ({ id: i + 1, slideId: i + 1 }));
+
+      for (let i = 0; i < baseSlides.length; i++) {
+        const slideIndex = i;  // 这是针对生成的资源的严格连续索引: 0, 1, 2...
+        // 这是真实的业务幻灯片ID，可能是 1, 2, 4 (中间删了一页)
+        const slideId = baseSlides[i].slideId || baseSlides[i].id || i + 1; 
 
         const noteEntry = notesData.find((n: any) => {
-          // Look for exact match between slideId and the ID in notesData
-          // notesData entries have IDs that match the original slide IDs from PPTExtractor
+          // 这里最安全的做法是通过真实的 slideId 匹配
           return n.id === slideId || n.slideId === slideId;
         });
 
         const hasFile = (list: string[], prefix: string, ext: string) =>
-          list.includes(`${prefix}${i}${ext}`) || list.includes(`${prefix}${i + 1}${ext}`);
+          list.includes(`${prefix}${slideIndex}${ext}`);
 
         const hasSlide = hasFile(slideFiles, 'slide_', '.png');
         const hasAudio = hasFile(audioFiles, 'slide_', '.mp3');
@@ -198,22 +212,25 @@ router.get(
         const hasGenImageOld = hasFile(genImageFiles, 'slide_', '.png');
 
         // 获取该 slide 的所有生成图片版本
-        // 逻辑与 generate.ts 保持一致: 文本文档模式前缀为 'image', 幻灯片模式为 'slide_{id}'
-        const filePrefix = isTextMode ? 'image' : `slide_${i}`;
+        const filePrefix = isTextMode ? 'image' : `slide_${slideIndex}`;
         const generatedImagesDir = path.join(jobDir, 'generated_images');
         const imageVersions = await getImageVersions(generatedImagesDir, filePrefix, jobId as string);
         const latestVersion = imageVersions.length > 0 ? imageVersions[0] : null;
         const hasGenImage = imageVersions.length > 0 || hasGenImageOld;
 
+        const docSlide = baseSlides[i];
+
         slides.push({
-          index: i,
-          slideId: i + 1,
+          index: slideIndex,
+          slideId: slideId,
           note: noteEntry?.note || noteEntry?.description || '',
-          title: noteEntry?.title || '',
+          pageGap: noteEntry?.pageGap ?? 0.5,
+          title: (noteEntry?.title || docSlide?.title || '').trim(),
+          content: (noteEntry?.content || docSlide?.content || '').trim(),
           resources: {
-            image: { exists: hasSlide, url: hasSlide ? `/webhook/servefiles/api/slides-data/${jobId}/images/slide_${i}.png` : null },
-            audio: { exists: hasAudio, url: hasAudio ? `/webhook/servefiles/api/slides-data/${jobId}/audio/slide_${i}.mp3` : null },
-            video: { exists: hasVideo, url: hasVideo ? `/webhook/servefiles/api/slides-data/${jobId}/video/slide_${i}.mp4` : null },
+            image: { exists: hasSlide, url: hasSlide ? `/webhook/servefiles/api/slides-data/${jobId}/images/slide_${slideIndex}.png` : null },
+            audio: { exists: hasAudio, url: hasAudio ? `/webhook/servefiles/api/slides-data/${jobId}/audio/slide_${slideIndex}.mp3` : null },
+            video: { exists: hasVideo, url: hasVideo ? `/webhook/servefiles/api/slides-data/${jobId}/video/slide_${slideIndex}.mp4` : null },
             generatedImage: {
               exists: hasGenImage,
               url: latestVersion ? latestVersion.url : null
@@ -222,6 +239,12 @@ router.get(
           generatedImageVersions: imageVersions
         });
       }
+      const videoDir = path.join(jobDir, 'video');
+      let hasFinalVideo = false;
+      try {
+        await fs.access(path.join(videoDir, 'final_video.mp4'));
+        hasFinalVideo = true;
+      } catch {}
 
       res.json({
         success: true,
@@ -232,7 +255,9 @@ router.get(
           progress: job.progress,
           metadata: job.metadata,
           slides: slides,
-          notes: notesData
+          notes: notesData,
+          hasFinalVideo,
+          finalVideoUrl: hasFinalVideo ? `/webhook/servefiles/api/slides-data/${jobId}/video/final_video.mp4` : null
         }
       });
     } catch (error: any) {

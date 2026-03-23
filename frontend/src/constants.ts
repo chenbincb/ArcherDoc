@@ -48,6 +48,8 @@ export const COQUI_TTS_SPEAKERS = [
 
 // Available voices for Qwen TTS
 export const QWEN_TTS_VOICES = [
+  { id: 'Neil', name: '阿闻', description: '新闻主播（沉稳男声）' },
+  { id: 'Elias', name: '墨讲师', description: '学术讲师女' },
   { id: 'Ethan', name: 'Ethan', description: '男声 - 专业稳重' },
   { id: 'Chelsie', name: 'Chelsie', description: '女声 - 自然流畅' },
   { id: 'Cherry', name: 'Cherry', description: '女声 - 温柔甜美' },
@@ -86,7 +88,8 @@ export const DEFAULT_VIDEO_SETTINGS: VideoSettings = {
   // Qwen TTS Settings
   qwenApiKey: '',
   qwenModel: 'qwen3-tts-flash',
-  qwenVoiceId: 'Chelsie'
+  qwenVoiceId: 'Chelsie',
+  pageGap: 0.5
 };
 
 // --- Image Generation Constants ---

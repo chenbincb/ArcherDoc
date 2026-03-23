@@ -100,7 +100,7 @@ async function generateVideoAsync(jobId: string, settings: any, mode: 'single' |
             }
 
             const videoPath = path.join(videoDir, `slide_${slideId}.mp4`);
-            await videoService.generateSlideVideo(imagePath, hasAudio ? audioPath : null, videoPath);
+            await videoService.generateSlideVideo(imagePath, hasAudio ? audioPath : null, videoPath, 3.0, settings?.pageGap ?? 0.5);
 
             logger.success(`Single slide video generated: ${videoPath}`);
             await jobManager.updateJob(jobId, { status: 'completed', progress: 100 });
@@ -110,55 +110,36 @@ async function generateVideoAsync(jobId: string, settings: any, mode: 'single' |
         // --- 全量视频合成模式 (Final) ---
         logger.info(`Generating final video for Job ${jobId}`);
         await jobManager.updateJob(jobId, { status: 'processing', progress: 10 });
-        const slidesDir = path.join(jobDir, 'slides');
-        const audioDir = path.join(jobDir, 'audio');
 
-        // 获取 slides 列表
-        const files = await fs.readdir(slidesDir);
-        const slideFiles = files.filter(f => f.startsWith('slide_') && f.endsWith('.png'));
-
-        // 排序 slide_1, slide_2...
-        slideFiles.sort((a, b) => {
-            const numA = parseInt(a.match(/slide_(\d+)/)?.[1] || '0');
-            const numB = parseInt(b.match(/slide_(\d+)/)?.[1] || '0');
-            return numA - numB;
-        });
-
-        logger.info(`Found ${slideFiles.length} slides for video generation`);
-
-        const videoSegments: string[] = [];
-
-        // 1. 生成每一页的视频片段
-        for (let i = 0; i < slideFiles.length; i++) {
-            const slideFile = slideFiles[i];
-            const slideId = parseInt(slideFile.match(/slide_(\d+)/)?.[1] || '0');
-
-            // 进度更新
-            const progress = 10 + Math.floor((i / slideFiles.length) * 60);
-            await jobManager.updateJob(jobId, { status: 'processing', progress });
-
-            const imagePath = path.join(slidesDir, slideFile);
-            const audioPath = path.join(audioDir, `slide_${slideId}.mp3`);
-            const segmentPath = path.join(tempDir, `segment_${slideId}.mp4`);
-
-            let hasAudio = false;
-            try {
-                await fs.access(audioPath);
-                hasAudio = true;
-            } catch {
-                logger.warn(`Audio not found for slide ${slideId}, video will be silent`);
-            }
-
-            await videoService.generateSlideVideo(imagePath, hasAudio ? audioPath : null, segmentPath);
-            videoSegments.push(segmentPath);
+        // 1. 扫描 video 目录下的所有 slide_*.mp4 文件
+        let videoFiles: string[] = [];
+        try {
+            const files = await fs.readdir(videoDir);
+            videoFiles = files
+                .filter(f => f.startsWith('slide_') && f.endsWith('.mp4') && f !== 'final_video.mp4')
+                .sort((a, b) => {
+                    const numA = parseInt(a.match(/\d+/)![0]);
+                    const numB = parseInt(b.match(/\d+/)![0]);
+                    return numA - numB;
+                })
+                .map(f => path.join(videoDir, f));
+        } catch (err) {
+            throw new Error('未找到任何已生成的单页视频片段，请先生成单页视频后再合并。');
         }
 
-        // 2. 合并所有片段
+        if (videoFiles.length === 0) {
+            throw new Error('未找到任何已生成的单页视频片段，请先生成单页视频后再合并。');
+        }
+
+        logger.info(`Found ${videoFiles.length} video clips to merge`);
+        await jobManager.updateJob(jobId, { progress: 40 });
+
+        // 2. 合并所有现存片段
         await jobManager.updateJob(jobId, { status: 'processing', progress: 80 });
         const finalVideoPath = path.join(videoDir, 'final_video.mp4');
 
-        logger.info(`Merging ${videoSegments.length} video segments...`);
-        await videoService.mergeVideos(videoSegments, finalVideoPath, tempDir);
+        logger.info(`Merging ${videoFiles.length} video segments...`);
+        await videoService.mergeVideos(videoFiles, finalVideoPath, tempDir);
 
         logger.success(`Final video generated: ${finalVideoPath}`);
         await jobManager.updateJob(jobId, { status: 'completed', progress: 100 });

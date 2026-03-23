@@ -29,12 +29,15 @@ interface SlideReviewData {
   id: number;
   imageUrl: string;
   script: string;
+  title?: string; // ✅ 新增
+  content?: string; // ✅ 新增
   audioUrl?: string;
   videoUrl?: string; // ✅ 新增
   hasAudio: boolean; // ✅ 新增
   hasVideo: boolean; // ✅ 新增
   isPlaying: boolean;
   audioBlob?: Blob;
+  pageGap?: number; // ✅ 新增：当前幻灯片的语音停顿间隔
 }
 
 interface VideoReviewPageProps {
@@ -160,6 +163,11 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
       const responseData = await jobDataResponse.json();
       const jobData = responseData.data || responseData;
 
+      // 提取预先探测到的已合成大视频
+      if (jobData.hasFinalVideo && jobData.finalVideoUrl) {
+        setMergedVideoUrl(jobData.finalVideoUrl);
+      }
+
       // 使用后端返回的 slides 数组 (增强版结构)
       if (jobData.slides && Array.isArray(jobData.slides)) {
         const timestamp = Date.now();
@@ -167,6 +175,9 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
           id: slide.slideId, // 1-based
           imageUrl: buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'images', `slide_${slide.index}.png`),
           script: slide.note || '',
+          pageGap: slide.pageGap ?? 0.5,
+          title: slide.title || '', // ✅ 保留标题
+          content: slide.content || '', // ✅ 保留内容 (注意：后端 slides 数组中可能需要从原始 notes 匹配，或者后端已经注入)
           hasAudio: slide.resources?.audio?.exists || false,
           hasVideo: slide.resources?.video?.exists || false,
           audioUrl: slide.resources?.audio?.exists ? buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'audio', `slide_${slide.index}.mp3`, timestamp) : undefined,
@@ -363,8 +374,10 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
         })
       });
 
-      if (!response.ok) throw new Error(`生成语音失败: ${response.statusText}`);
       const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || result.message || `生成语音失败: ${response.statusText}`);
+      }
 
       if (result.status === 'success') {
         // ✅ 局部更新状态，避免全量 fetch 覆盖用户未保存的 script 修改
@@ -416,7 +429,8 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
         body: JSON.stringify({
           jobId,
           mode: 'single',
-          slideId: slide.id - 1
+          slideId: slide.id - 1,
+          settings: { pageGap: slide.pageGap ?? 0.5 }
         })
       });
 
@@ -462,8 +476,10 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
     }
     try {
       const notes = reviewData.map(item => ({
-        id: item.id - 1,
-        note: item.script
+        id: item.id,      // 以原始的幻灯片业务编号（1-based）存储，不要随意减一
+        slideId: item.id, // 冗余下发显式的 slideId，后续如有新需求可作双重兼容
+        note: item.script,
+        pageGap: item.pageGap ?? 0.5
       }));
       const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}${API_ENDPOINTS.SAVE_CONTENT}`, {
         method: 'POST',
@@ -590,12 +606,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
     setExportData(null);
   };
 
-  const handleSubmitForVideoGeneration = async () => {
-    if (!jobId) {
-      showNotification('无法获取任务ID');
-      return;
-    }
-    setShowMergeModal(true);
+  const executeFinalVideoMerge = async () => {
     try {
       setIsMergingVideos(true);
       setMergeProgress(0);
@@ -605,8 +616,11 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, mode: 'final' })
       });
-      if (!response.ok) throw new Error(`合并视频失败: ${response.statusText}`);
       const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || result.message || `合并视频失败: ${response.statusText}`);
+      }
+      
       if (result.success) {
         setMergeProgress(100);
         const url = buildMediaUrl(API_CONFIG.BASE_URL, jobId, 'video', 'final_video.mp4', Date.now());
@@ -621,6 +635,20 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
     } finally {
       setIsMergingVideos(false);
     }
+  };
+
+  const handleSubmitForVideoGeneration = async () => {
+    if (!jobId) {
+      showNotification('无法获取任务ID');
+      return;
+    }
+    setShowMergeModal(true);
+    
+    // ✅ 如果已经生成过，并且已存有视频地址，那么仅弹出弹框，不重新生成
+    if (mergedVideoUrl) {
+      return;
+    }
+    await executeFinalVideoMerge();
   };
 
   if (isLoading) {
@@ -716,7 +744,26 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
             </div>
 
             <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <h3 className="text-sm font-bold text-gray-300 mb-3">视频生成</h3>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-bold text-gray-300">视频生成</h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">停顿(秒):</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    className="w-16 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white text-center focus:ring-1 focus:ring-primary focus:outline-none"
+                    value={currentData.pageGap ?? 0.5}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setReviewData(prev => prev.map((item, i) =>
+                        i === currentSlide ? { ...item, pageGap: isNaN(val) ? 0.5 : val } : item
+                      ));
+                    }}
+                  />
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={handleGenerateCurrentVideo}
@@ -756,28 +803,36 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
         {showMergeModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-8 w-full max-w-7xl">
-              <h2 className="text-2xl font-bold mb-6">视频合并</h2>
+              <h2 className="text-2xl font-bold mb-6">视频合并预览</h2>
               {isMergingVideos && <MagicTextDisplay status="MERGING_VIDEO" text="正在合并全量视频..." />}
-              {mergedVideoUrl && (
+              {(!isMergingVideos && mergedVideoUrl) && (
                 <div className="mb-6 bg-gray-700 rounded-xl p-6">
-                  <video src={mergedVideoUrl} controls className="w-full max-h-[600px] mb-4" />
-                  <button
-                    onClick={async () => {
-                      const response = await fetch(mergedVideoUrl);
-                      const blob = await response.blob();
-                      const a = document.createElement('a');
-                      a.href = URL.createObjectURL(blob);
-                      a.download = 'final_video.mp4';
-                      a.click();
-                    }}
-                    className="w-full py-3 bg-green-600 hover:bg-green-700 rounded font-bold"
-                  >
-                    📥 下载完整视频
-                  </button>
+                  <video src={mergedVideoUrl} controls className="w-full max-h-[600px] mb-4 bg-black rounded" />
+                  <div className="flex gap-4">
+                    <button
+                      onClick={async () => {
+                        const response = await fetch(mergedVideoUrl);
+                        const blob = await response.blob();
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = 'final_video.mp4';
+                        a.click();
+                      }}
+                      className="flex-1 py-3 bg-green-600 hover:bg-green-700 rounded font-bold transition-colors"
+                    >
+                      📥 下载完整视频
+                    </button>
+                    <button
+                      onClick={executeFinalVideoMerge}
+                      className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded font-bold transition-colors"
+                    >
+                      🔄 重新生成
+                    </button>
+                  </div>
                 </div>
               )}
               <div className="flex justify-end mt-4">
-                <button onClick={() => setShowMergeModal(false)} className="px-6 py-2 bg-gray-700 rounded">关闭</button>
+                <button onClick={() => setShowMergeModal(false)} className="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded font-bold transition-colors">关闭</button>
               </div>
             </div>
           </div>
