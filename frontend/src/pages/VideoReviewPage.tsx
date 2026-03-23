@@ -101,12 +101,14 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
 
   // 一键全量自动生成状态
   const [showAutoModal, setShowAutoModal] = useState(false);
+  const [showImageManagerModal, setShowImageManagerModal] = useState(false);
   const [autoSkipEmpty, setAutoSkipEmpty] = useState(true);
   const [autoDefaultGap, setAutoDefaultGap] = useState(0.5);
   const [autoRebuildAll, setAutoRebuildAll] = useState(false);
   const [isAutoProcessing, setIsAutoProcessing] = useState(false);
   const [autoTotalSlides, setAutoTotalSlides] = useState(0);
   const [autoCurrentSlide, setAutoCurrentSlide] = useState(0);
+  const [imageVersion, setImageVersion] = useState<number>(Date.now());
 
   // Update localVideoSettings when appSettings changes
   useEffect(() => {
@@ -611,6 +613,69 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
     }
   };
 
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+
+  // 处理图片上传替换
+  const handleImageUpload = async (files: FileList | null, targetSlideId?: number) => {
+    if (!jobId || !files || files.length === 0) return;
+
+    setIsUploadingImages(true);
+    const formData = new FormData();
+    formData.append('jobId', jobId);
+    if (targetSlideId !== undefined) {
+      formData.append('targetSlideId', targetSlideId.toString());
+    }
+
+    Array.from(files).forEach(file => {
+      formData.append('files', file);
+    });
+
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.API_PATH}/upload-slides`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || `上传失败: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      showNotification(`成功替换了 ${result.data?.results?.filter((r:any) => r.status === 'success').length || files.length} 张图片`, 'success');
+      
+      // 1. 强制更新图片版本号 (触发大图 URL 变更，由于是时间戳加持，浏览器会直接拉新图)
+      setImageVersion(Date.now());
+
+      // 2. 手动更新本地状态，标记图片已存在，避免全局 fetch 导致的页面抖动
+      const successfulIndices = result.data?.results
+        ?.filter((r: any) => r.status === 'success')
+        ?.map((r: any) => r.slideIndex) || [];
+      
+      setReviewData(prev => prev.map((item, idx) => {
+        const isTarget = successfulIndices.includes(idx) || (targetSlideId !== undefined && idx === parseInt(targetSlideId.toString()) - 1);
+        if (isTarget) {
+          const oldResources = item.resources || {};
+          return {
+            ...item,
+            resources: {
+              ...oldResources,
+              image: { ...(oldResources.image || { exists: false, url: null }), exists: true }
+            }
+          };
+        }
+        return item;
+      }));
+
+      setShowImageManagerModal(false);
+    } catch (error: any) {
+      console.error('Upload slides failed:', error);
+      showNotification(`上传失败: ${error.message}`);
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
   const handleExportNotes = async () => {
     if (!jobId) {
       showNotification('无法获取任务ID');
@@ -760,7 +825,7 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
             currentSlide={currentSlide}
             totalSlides={reviewData.length}
             slideNumber={currentData.id}
-            imageUrl={currentData.imageUrl}
+            imageUrl={currentData.imageUrl ? `${currentData.imageUrl}?v=${imageVersion}` : null}
             videoUrl={previewVideoUrlToUse}
             showVideoToggle={currentData.hasVideo}
             showVideoPreview={showVideoPreview}
@@ -860,17 +925,95 @@ export const VideoReviewPage: React.FC<VideoReviewPageProps> = ({
           </div>
         </div>
 
-        <div className="mt-6 border-t border-gray-700 pt-4 flex justify-end gap-2">
-          <button 
-            onClick={() => setShowAutoModal(true)} 
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded font-bold transition-all active:scale-95 flex items-center gap-2"
-          >
-            🚀 一键全自动生成
-          </button>
-          <button onClick={handleSaveNotes} className="px-4 py-2 bg-secondary hover:bg-emerald-600 rounded font-bold transition-colors">保存讲稿</button>
-          <button onClick={handleExportNotes} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-bold transition-colors">导出讲稿</button>
-          <button onClick={handleSubmitForVideoGeneration} className="px-4 py-2 bg-primary hover:bg-blue-600 rounded font-bold transition-colors">合并生成视频</button>
+        <div className="mt-6 border-t border-gray-700 pt-4 flex justify-between items-center">
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setShowAutoModal(true)} 
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded font-bold transition-all active:scale-95 flex items-center gap-2"
+            >
+              🚀 一键全自动生成
+            </button>
+            <button 
+              onClick={() => setShowImageManagerModal(true)} 
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded font-bold transition-all active:scale-95 flex items-center gap-2 text-white"
+            >
+              📷 替换预览图
+            </button>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={handleSaveNotes} className="px-4 py-2 bg-secondary hover:bg-emerald-600 rounded font-bold transition-colors">保存讲稿</button>
+            <button onClick={handleExportNotes} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-bold transition-colors text-white">导出讲稿</button>
+            <button onClick={handleSubmitForVideoGeneration} className="px-4 py-2 bg-primary hover:bg-blue-600 rounded font-bold transition-colors text-white">合并生成视频</button>
+          </div>
         </div>
+
+        {/* 📷 预览图管理弹窗 */}
+        {showImageManagerModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+            <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 w-full max-w-2xl shadow-2xl relative">
+              <button 
+                onClick={() => setShowImageManagerModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl"
+              >
+                ×
+              </button>
+              
+              <div className="flex items-center gap-3 mb-8 text-blue-400">
+                <span className="text-3xl">📷</span>
+                <h3 className="text-2xl font-bold text-white">替换预览图 (解决服务器渲染位移)</h3>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                {/* 模式 A: 替换当前页 */}
+                <div 
+                  className="bg-gray-700/50 border-2 border-dashed border-gray-600 rounded-xl p-6 hover:border-blue-500 hover:bg-blue-500/5 cursor-pointer transition-all group relative"
+                  onClick={() => document.getElementById('single-upload-input')?.click()}
+                >
+                  <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">🖼️</div>
+                  <h4 className="text-lg font-bold text-white mb-2">替换当前页</h4>
+                  <p className="text-sm text-gray-400">仅替换第 {currentSlide + 1} 页的图片。上传后系统会自动对齐序号并覆盖。</p>
+                  <input 
+                    id="single-upload-input"
+                    type="file" 
+                    accept="image/png" 
+                    className="hidden"
+                    onChange={(e) => handleImageUpload(e.target.files, reviewData[currentSlide].id)}
+                  />
+                  {isUploadingImages && <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">上传中...</div>}
+                </div>
+
+                {/* 模式 B: 批量多选替换 */}
+                <div 
+                  className="bg-gray-700/50 border-2 border-dashed border-gray-600 rounded-xl p-6 hover:border-indigo-500 hover:bg-indigo-500/5 cursor-pointer transition-all group relative"
+                  onClick={() => document.getElementById('batch-upload-input')?.click()}
+                >
+                  <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">📚</div>
+                  <h4 className="text-lg font-bold text-white mb-2">批量上传 (多选)</h4>
+                  <p className="text-sm text-gray-400">支持多选图片。系统会从文件名(如 slide_5.png) 中扣取序号并匹配覆盖。</p>
+                  <input 
+                    id="batch-upload-input"
+                    type="file" 
+                    multiple 
+                    accept="image/png" 
+                    className="hidden"
+                    onChange={(e) => handleImageUpload(e.target.files)}
+                  />
+                  {isUploadingImages && <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">上传中...</div>}
+                </div>
+              </div>
+
+              <div className="mt-8 bg-blue-900/20 border border-blue-900/50 rounded-lg p-4 text-xs text-blue-200/80 leading-relaxed">
+                <p className="font-bold mb-1 text-blue-400">💡 操作提示：</p>
+                <ul className="list-disc ml-4 space-y-1">
+                  <li>推荐使用 PPT 导出的 1080P 高清图片，格式必须为 **PNG**。</li>
+                  <li>批量模式下，文件名需包含对应页码索引（例如：slide_0.png 代表第 1 页）。</li>
+                  <li>覆盖后请重新进行“生成视频”操作，以确保最终合成效果。</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Merge Modal */}
         {showMergeModal && (

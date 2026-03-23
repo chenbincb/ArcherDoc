@@ -538,4 +538,74 @@ router.get(
   })
 );
 
+/**
+ * POST /webhook/api/upload-slides
+ * 手动上传并替换 PPT 预览图
+ * 支持单张替换（带 targetSlideId）和多选批量替换（基于文件名序号）
+ */
+router.post(
+  '/upload-slides',
+  upload.array('files'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { jobId, targetSlideId } = req.body;
+    const files = req.files as Express.Multer.File[];
+
+    if (!jobId || !files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'jobId and files are required'
+      });
+    }
+
+    try {
+      const jobManager = getJobManager();
+      const jobDir = jobManager.getJobDir(jobId);
+      const slidesDir = path.join(jobDir, 'slides');
+      await fs.mkdir(slidesDir, { recursive: true });
+
+      const results = [];
+
+      for (const file of files) {
+        let slideIndex: number | null = null;
+
+        // 1. 如果传了 targetSlideId (单页模式)，直接使用前端传来的 ID (它是准确的索引)
+        if (targetSlideId !== undefined && files.length === 1) {
+          // 前端传的 id 是 1-based，我们需要 -1 转为 slide_0.png 风格
+          slideIndex = parseInt(targetSlideId) - 1; 
+        } else {
+          // 2. 批量模式：从文件名中匹配数字序号 (例如 slide_1.png -> 0)
+          const match = file.originalname.match(/\d+/);
+          if (match) {
+            slideIndex = parseInt(match[0]) - 1;
+          }
+        }
+
+        if (slideIndex === null || isNaN(slideIndex) || slideIndex < 0) {
+          results.push({ name: file.originalname, status: 'failed', error: 'Could not determine valid slide index' });
+          continue;
+        }
+
+        const targetPath = path.join(slidesDir, `slide_${slideIndex}.png`);
+        
+        // 写入文件 (覆盖现有)
+        await fs.writeFile(targetPath, file.buffer);
+        results.push({ name: file.originalname, slideIndex, status: 'success' });
+        
+        logger.info(`Manually replaced slide image: ${jobId}/slides/slide_${slideIndex}.png`);
+      }
+
+      res.json({
+        success: true,
+        data: { results }
+      });
+    } catch (error: any) {
+      logger.error('Failed to upload slides:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  })
+);
+
 export default router;
