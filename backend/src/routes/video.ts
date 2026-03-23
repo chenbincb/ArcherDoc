@@ -12,7 +12,7 @@ const router = Router();
 /**
  * 异步生成视频逻辑
  */
-async function generateVideoAsync(jobId: string, settings: any, mode: 'single' | 'final' = 'final', slideId?: number): Promise<void> {
+async function generateVideoAsync(jobId: string, settings: any, mode: 'single' | 'final' | 'auto_full' = 'final', slideId?: number): Promise<void> {
     const jobManager = getJobManager();
     const videoService = getVideoService();
 
@@ -22,6 +22,50 @@ async function generateVideoAsync(jobId: string, settings: any, mode: 'single' |
         const tempDir = path.join(jobDir, 'temp');
         await fs.mkdir(videoDir, { recursive: true });
         await fs.mkdir(tempDir, { recursive: true });
+
+        if (mode === 'auto_full') {
+            // --- 一键全量自动生成模式 ---
+            logger.info(`Starting auto full generation for Job ${jobId}`);
+            const { skipEmptyNotes = true, defaultGap = 0.5, rebuildAll = false } = settings || {};
+
+            // 1. 读取讲稿
+            const notesPath = path.join(jobDir, 'notes.json');
+            const notesData = JSON.parse(await fs.readFile(notesPath, 'utf-8'));
+            const totalSlides = notesData.length;
+
+            for (let i = 0; i < totalSlides; i++) {
+                const note = notesData[i];
+                const slideId = note.id !== undefined ? note.id : note.slideId;
+                const progress = Math.round((i / totalSlides) * 80); // 批处理进度占 80%
+
+                await jobManager.updateJob(jobId, { 
+                    status: 'processing', 
+                    progress,
+                    metadata: { ...settings, currentProcessingSlide: i + 1, totalSlides }
+                });
+
+                // 处理空讲稿
+                if (!note.note || note.note.trim() === '') {
+                    if (skipEmptyNotes) {
+                        logger.info(`Skipping empty slide ${slideId}`);
+                        continue;
+                    }
+                }
+
+                // 调用单页生成逻辑 (复用 single 所有的检测与合成逻辑)
+                // 注意：这里是串行等待，以保证服务器压力稳定
+                try {
+                    await generateVideoAsync(jobId, settings, 'single', slideId);
+                } catch (err: any) {
+                    logger.warn(`Slide ${slideId} generation failed during auto_full: ${err.message}`);
+                    // 单页失败不中断全案，继续下一页
+                }
+            }
+
+            // 2. 补全完成后，直接调用 final 模式进行合并
+            logger.info(`Auto full slides completed, starting final merge...`);
+            return await generateVideoAsync(jobId, settings, 'final');
+        }
 
         if (mode === 'single') {
             // --- 单页视频生成模式 ---
